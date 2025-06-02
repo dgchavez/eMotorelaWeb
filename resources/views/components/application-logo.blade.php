@@ -1,0 +1,1 @@
+<img src="{{ asset('images/logo.jpeg') }}" {{ $attributes }} alt="E-Motorela Logo">
