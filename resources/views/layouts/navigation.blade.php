@@ -26,7 +26,7 @@
                             <x-nav-link :href="route('operators.index')" :active="request()->routeIs('reports.*')">
                             {{ __('Operators') }}
                         </x-nav-link>
-                            <x-nav-link :href="route('drivers.index')" :active="request()->routeIs('reports.*')">
+                            <x-nav-link :href="route('admin.drivers.index')" :active="request()->routeIs('reports.*')">
                             {{ __('Drivers') }}
                         </x-nav-link>
                         <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">

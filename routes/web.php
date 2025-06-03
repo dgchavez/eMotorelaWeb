@@ -70,6 +70,7 @@ Route::middleware(['auth'])->group(function () {
     // Staff Routes
     Route::middleware(['staff'])->prefix('staff')->group(function () {
         Route::get('/dashboard', [StaffDashboardController::class, 'index'])->name('staff.dashboard');
+        Route::resource('drivers', DriverController::class);
     });
 });
 

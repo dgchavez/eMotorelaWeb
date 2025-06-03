@@ -7,6 +7,23 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <!-- Flash Messages -->
+            @if(session('success'))
+                <div class="mb-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if($errors->any())
+                <div class="mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4">
+                    <ul>
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 bg-white border-b border-gray-200">
                     <div class="flex justify-between items-center mb-6">
@@ -16,37 +33,73 @@
                         </a>
                     </div>
 
-                    <!-- Search and Filter -->
-                    <div class="mb-4">
-                        <form action="{{ route('toda.index') }}" method="GET" class="flex gap-4">
-                            <div class="flex-1">
-                                <input type="text" name="search" value="{{ request('search') }}" 
-                                    class="w-full rounded-md border-gray-300" 
-                                    placeholder="Search TODA name or president...">
+                    <!-- Enhanced Search and Filter -->
+                    <div class="mb-4 bg-gray-50 p-4 rounded-lg">
+                        <form action="{{ route('toda.index') }}" method="GET" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div>
+                                    <label for="search" class="block text-sm font-medium text-gray-700">Search</label>
+                                    <input type="text" name="search" value="{{ request('search') }}" 
+                                        class="mt-1 w-full rounded-md border-gray-300" 
+                                        placeholder="Search TODA name or president...">
+                                </div>
+                                
+                                <div>
+                                    <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                                    <select name="status" class="mt-1 w-full rounded-md border-gray-300">
+                                        <option value="">All Status</option>
+                                        <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
+                                        <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label for="date_from" class="block text-sm font-medium text-gray-700">Date From</label>
+                                    <input type="date" name="date_from" value="{{ request('date_from') }}"
+                                        class="mt-1 w-full rounded-md border-gray-300">
+                                </div>
+
+                                <div>
+                                    <label for="date_to" class="block text-sm font-medium text-gray-700">Date To</label>
+                                    <input type="date" name="date_to" value="{{ request('date_to') }}"
+                                        class="mt-1 w-full rounded-md border-gray-300">
+                                </div>
                             </div>
-                            <div class="w-48">
-                                <select name="status" class="w-full rounded-md border-gray-300">
-                                    <option value="">All Status</option>
-                                    <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
-                                    <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
-                                </select>
+
+                            <div class="flex justify-end space-x-4">
+                                <a href="{{ route('toda.index') }}" 
+                                   class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
+                                    Clear Filters
+                                </a>
+                                <button type="submit" 
+                                        class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                                    Apply Filters
+                                </button>
                             </div>
-                            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
-                                Search
-                            </button>
-                            <a href="{{ route('toda.index') }}" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
-                                Clear
-                            </a>
                         </form>
                     </div>
 
-                    <!-- TODA Table -->
+                    <!-- Enhanced TODA Table -->
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        TODA Name
+                                        <a href="{{ route('toda.index', array_merge(request()->query(), [
+                                            'sort' => 'name',
+                                            'direction' => request('sort') === 'name' && request('direction') === 'asc' ? 'desc' : 'asc'
+                                        ])) }}" class="flex items-center">
+                                            TODA Name
+                                            @if(request('sort') === 'name')
+                                                <span class="ml-1">
+                                                    @if(request('direction') === 'asc')
+                                                        ↑
+                                                    @else
+                                                        ↓
+                                                    @endif
+                                                </span>
+                                            @endif
+                                        </a>
                                     </th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         President
@@ -56,6 +109,9 @@
                                     </th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Status
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Members
                                     </th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Actions
@@ -75,16 +131,28 @@
                                             {{ $toda->registration_date->format('M d, Y') }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $toda->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                {{ $toda->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
                                                 {{ ucfirst($toda->status) }}
                                             </span>
                                         </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                            {{ $toda->operators_count }} members
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <a href="{{ route('toda.edit', $toda) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</a>
-                                            <form action="{{ route('toda.destroy', $toda) }}" method="POST" class="inline">
+                                            <a href="{{ route('toda.edit', $toda) }}" 
+                                               class="text-indigo-600 hover:text-indigo-900 mr-3">
+                                                Edit
+                                            </a>
+                                            <form action="{{ route('toda.destroy', $toda) }}" 
+                                                  method="POST" 
+                                                  class="inline"
+                                                  onsubmit="return confirm('Are you sure you want to delete this TODA? This action cannot be undone.');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure you want to delete this TODA?')">
+                                                <button type="submit" 
+                                                        class="text-red-600 hover:text-red-900 {{ $toda->operators_count > 0 ? 'opacity-50 cursor-not-allowed' : '' }}"
+                                                        {{ $toda->operators_count > 0 ? 'disabled' : '' }}>
                                                     Delete
                                                 </button>
                                             </form>
@@ -92,7 +160,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">
                                             No TODAs found
                                         </td>
                                     </tr>
@@ -101,7 +169,7 @@
                         </table>
                     </div>
 
-                    <!-- Pagination -->
+                    <!-- Enhanced Pagination -->
                     <div class="mt-4">
                         {{ $todas->links() }}
                     </div>

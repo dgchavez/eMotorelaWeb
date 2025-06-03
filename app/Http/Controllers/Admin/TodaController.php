@@ -4,24 +4,44 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Toda;
+use App\Models\Operator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class TodaController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $todas = Toda::query()
-            ->when(request('search'), function($query, $search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('president', 'like', "%{$search}%");
+        $query = Toda::query()
+            ->withCount('operators') // Add count of operators for each TODA
+            ->when($request->filled('search'), function($query) use ($request) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('president', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                });
             })
-            ->when(request('status'), function($query, $status) {
-                $query->where('status', $status);
+            ->when($request->filled('status'), function($query) use ($request) {
+                $query->where('status', $request->status);
             })
-            ->paginate(10);
+            ->when($request->filled('date_from'), function($query) use ($request) {
+                $query->whereDate('registration_date', '>=', $request->date_from);
+            })
+            ->when($request->filled('date_to'), function($query) use ($request) {
+                $query->whereDate('registration_date', '<=', $request->date_to);
+            });
+
+        // Add sorting functionality
+        $sort = $request->input('sort', 'name');
+        $direction = $request->input('direction', 'asc');
+        $query->orderBy($sort, $direction);
+
+        $todas = $query->paginate(10)->withQueryString();
 
         return view('admin.todaIndex', compact('todas'));
     }
@@ -93,7 +113,12 @@ class TodaController extends Controller
     public function update(Request $request, Toda $toda)
     {
         $validated = $request->validate([
-            'toda_name' => 'required|string|max:100|unique:todas,name,' . $toda->id,
+            'toda_name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('todas', 'name')->ignore($toda->id)
+            ],
             'toda_president' => 'required|string|max:100',
             'registration_date' => 'required|date',
             'description' => 'nullable|string',
@@ -101,6 +126,8 @@ class TodaController extends Controller
         ]);
 
         try {
+            DB::beginTransaction();
+
             $toda->update([
                 'name' => $validated['toda_name'],
                 'president' => $validated['toda_president'],
@@ -109,9 +136,21 @@ class TodaController extends Controller
                 'status' => $validated['status'],
             ]);
 
+            // If TODA is marked as inactive, update related operators
+            if ($validated['status'] === 'inactive') {
+                // You might want to handle operators when TODA becomes inactive
+                // For example, notify operators or mark them as inactive
+                $toda->operators()->update(['status' => 'inactive']);
+            }
+
+            DB::commit();
+
             return redirect()->route('toda.index')
                 ->with('success', 'TODA updated successfully.');
         } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('TODA Update Error: ' . $e->getMessage());
+            
             return back()
                 ->withInput()
                 ->withErrors(['error' => 'An error occurred while updating the TODA.']);
@@ -124,11 +163,31 @@ class TodaController extends Controller
     public function destroy(Toda $toda)
     {
         try {
+            DB::beginTransaction();
+
+            // Check if TODA has active operators
+            $activeOperatorsCount = $toda->operators()->where('status', 'active')->count();
+            
+            if ($activeOperatorsCount > 0) {
+                return back()->withErrors([
+                    'error' => 'Cannot delete TODA. There are still ' . $activeOperatorsCount . ' active operators associated with this TODA.'
+                ]);
+            }
+
+            // Soft delete the TODA and related records
             $toda->delete();
+
+            DB::commit();
+
             return redirect()->route('toda.index')
                 ->with('success', 'TODA deleted successfully.');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'An error occurred while deleting the TODA.']);
+            DB::rollBack();
+            \Log::error('TODA Deletion Error: ' . $e->getMessage());
+            
+            return back()->withErrors([
+                'error' => 'An error occurred while deleting the TODA.'
+            ]);
         }
     }
 }
