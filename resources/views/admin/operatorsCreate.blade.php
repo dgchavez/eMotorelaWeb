@@ -1,3 +1,198 @@
+@push('scripts')
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function() {
+        console.log('jQuery loaded and document ready');
+        
+        // Event handler for opening modal
+        $('#openDriverModalButton').on('click', function(e) {
+            e.preventDefault();
+            console.log('Open button clicked');
+            $('#driverModal').removeClass('hidden');
+            $('body').addClass('overflow-hidden');
+        });
+
+        // Event handlers for closing modal
+        $('#closeDriverModalButton, #cancelDriverFormButton').on('click', function(e) {
+            e.preventDefault();
+            console.log('Close button clicked');
+            $('#driverModal').addClass('hidden');
+            $('body').removeClass('overflow-hidden');
+            $('#driverForm')[0].reset();
+        });
+
+        // Close modal when clicking outside
+        $('#driverModal').on('click', function(e) {
+            if (e.target === this) {
+                $('#driverModal').addClass('hidden');
+                $('body').removeClass('overflow-hidden');
+            }
+        });
+
+        // Rest of your existing JavaScript code converted to jQuery
+        let drivers = [];
+
+        $('#driverForm').on('submit', function(e) {
+            e.preventDefault();
+            if (validateForm()) {
+                const formData = new FormData(this);
+                const newDriver = {};
+                formData.forEach((value, key) => {
+                    newDriver[key] = value;
+                });
+
+                drivers.push(newDriver);
+                renderDriversList();
+                updateMainForm();
+                
+                $('#driverModal').addClass('hidden');
+                $('body').removeClass('overflow-hidden');
+                this.reset();
+            }
+        });
+
+        $('#addAnotherDriverButton').on('click', function(e) {
+            e.preventDefault();
+            if (validateForm()) {
+                const formData = new FormData($('#driverForm')[0]);
+                const newDriver = {};
+                formData.forEach((value, key) => {
+                    newDriver[key] = value;
+                });
+
+                drivers.push(newDriver);
+                renderDriversList();
+                updateMainForm();
+                $('#driverForm')[0].reset();
+                showSuccessMessage();
+            }
+        });
+
+        // Your existing functions converted to jQuery
+        function validateForm() {
+            removeValidationErrors();
+            let isValid = true;
+
+            $('#driverForm [required]').each(function() {
+                if (!$(this).val().trim()) {
+                    isValid = false;
+                    $(this).addClass('border-red-500');
+                    $('<div class="validation-error text-red-500 text-sm mt-1">This field is required</div>')
+                        .insertAfter(this);
+                }
+            });
+
+            // Add your other validation logic here
+
+            return isValid;
+        }
+
+        function removeValidationErrors() {
+            $('.validation-error').remove();
+            $('.border-red-500').removeClass('border-red-500');
+        }
+
+        function showSuccessMessage() {
+            const successMessage = `
+                <div class="success-message bg-green-50 border-l-4 border-green-400 p-4 mb-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-green-700">Driver added successfully! You can add another driver.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            $('.success-message').remove();
+            $(successMessage).insertBefore('#driverForm');
+            setTimeout(() => $('.success-message').fadeOut('slow', function() { $(this).remove(); }), 3000);
+        }
+
+        function updateMainForm() {
+            $('#driversDataForForm').empty();
+            drivers.forEach((driver, index) => {
+                Object.keys(driver).forEach(key => {
+                    $('<input>')
+                        .attr({
+                            type: 'hidden',
+                            name: `drivers[${index}][${key}]`,
+                            value: driver[key]
+                        })
+                        .appendTo('#driversDataForForm');
+                });
+            });
+        }
+
+        function renderDriversList() {
+            const $content = $('#driversListContent');
+            $content.empty();
+            
+            if (drivers.length === 0) {
+                $('#noDriversMessage').show();
+            } else {
+                $('#noDriversMessage').hide();
+                
+                // Add count header
+                $content.append(`
+                    <div class="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium text-gray-700">Total Drivers: ${drivers.length}</span>
+                        </div>
+                    </div>
+                `);
+
+                // Add driver items
+                drivers.forEach((driver, index) => {
+                    const driverItem = `
+                        <div class="p-4 flex justify-between items-start hover:bg-gray-50 border-b border-gray-200">
+                            <div class="flex-grow">
+                                <div class="flex items-center gap-2">
+                                    <p class="font-medium text-gray-900">${driver.last_name}, ${driver.first_name} ${driver.middle_name || ''}</p>
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Driver ${index + 1}
+                                    </span>
+                                </div>
+                                <div class="mt-1 text-sm text-gray-500 space-y-1">
+                                    <p>License: ${driver.drivers_license_no}</p>
+                                    <p>Expires: ${new Date(driver.license_expiry_date).toLocaleDateString()}</p>
+                                    <p>Contact: ${driver.contact_no}</p>
+                                    <p class="text-xs text-gray-400">${driver.address}</p>
+                                </div>
+                            </div>
+                            <button type="button" class="remove-driver-button ml-4 text-red-500 hover:text-red-700 font-medium flex items-center" data-index="${index}">
+                                <svg class="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Remove
+                            </button>
+                        </div>
+                    `;
+                    $content.append(driverItem);
+                });
+
+                // Add remove button handlers
+                $('.remove-driver-button').on('click', function() {
+                    const index = $(this).data('index');
+                    if (confirm('Are you sure you want to remove this driver?')) {
+                        drivers.splice(index, 1);
+                        renderDriversList();
+                        updateMainForm();
+                    }
+                });
+            }
+        }
+
+        // Initial render
+        renderDriversList();
+    });
+</script>
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -187,6 +382,40 @@
                             </div>
                         </div>
 
+                        <!-- Driver's Details -->
+                        <div class="mb-6">
+                            <h3 class="text-lg font-semibold mb-4 bg-gray-800 text-white px-4 py-2">Driver's Details</h3>
+                            
+                            <div class="mb-4">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h4 class="text-md font-medium text-gray-700">Drivers List</h4>
+                                    <button type="button" id="openDriverModalButton" 
+                                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                        </svg>
+                                        Add Driver
+                                    </button>
+                                </div>
+
+                                <div id="driversListContainer" class="bg-white rounded-lg border border-gray-200">
+                                    <div class="p-4 text-gray-500 text-center" id="noDriversMessage">
+                                        No drivers added yet.
+                                    </div>
+                                    <div class="divide-y divide-gray-200" id="driversListContent">
+                                        <!-- Driver items will be appended here by JavaScript -->
+                                    </div>
+                                </div>
+                                <div id="driversDataForForm">
+                                    <!-- Hidden inputs for drivers will be appended here -->
+                                </div>
+                                <!-- Add validation error message for drivers -->
+                                @error('drivers')
+                                    <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+
                         <!-- Emergency Contact -->
                         <div class="mb-6">
                             <h3 class="text-lg font-semibold mb-4 bg-gray-800 text-white px-4 py-2">In Case of Emergency</h3>
@@ -211,6 +440,81 @@
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Driver Modal -->
+    <div id="driverModal" class="fixed inset-0 z-50 hidden">
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-75"></div>
+        <div class="fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                    <div class="bg-white p-6">
+                        <div class="flex items-center justify-between border-b pb-3">
+                            <h3 class="text-xl font-semibold text-gray-900">Add New Driver</h3>
+                            <button type="button" id="closeDriverModalButton" 
+                                class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <form id="driverForm" class="mt-4 space-y-4">
+                            <div>
+                                <label for="driver_last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
+                                <input type="text" id="driver_last_name" name="last_name" required 
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="driver_first_name" class="block text-sm font-medium text-gray-700">First Name</label>
+                                <input type="text" id="driver_first_name" name="first_name" required
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="driver_middle_name" class="block text-sm font-medium text-gray-700">Middle Name</label>
+                                <input type="text" id="driver_middle_name" name="middle_name"
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="driver_address" class="block text-sm font-medium text-gray-700">Address</label>
+                                <input type="text" id="driver_address" name="address" required
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="driver_contact_no" class="block text-sm font-medium text-gray-700">Contact No.</label>
+                                <input type="text" id="driver_contact_no" name="contact_no" required
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="driver_license_no" class="block text-sm font-medium text-gray-700">Driver's License #</label>
+                                <input type="text" id="driver_license_no" name="drivers_license_no" required
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="driver_license_expiry_date" class="block text-sm font-medium text-gray-700">License Expiry Date</label>
+                                <input type="date" id="driver_license_expiry_date" name="license_expiry_date" required
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            </div>
+
+                            <div class="mt-6 flex justify-end space-x-3 border-t pt-4">
+                                <button type="button" id="cancelDriverFormButton"
+                                    class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                    Cancel
+                                </button>
+                                <button type="button" id="addAnotherDriverButton"
+                                    class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-blue-600 shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                    Add & Continue
+                                </button>
+                                <button type="submit"
+                                    class="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                    Add & Close
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
