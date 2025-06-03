@@ -13,6 +13,11 @@ class EmergencyContact extends Model
         'tel_no'
     ];
 
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
+    ];
+
     // Get the operator associated with this emergency contact
     public function operator(): BelongsTo
     {

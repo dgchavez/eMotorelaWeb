@@ -19,6 +19,11 @@ class Toda extends Model
         'registration_date' => 'date'
     ];
 
+    public function operators(): HasMany
+    {
+        return $this->hasMany(Operator::class);
+    }
+
     public function memberships(): HasMany
     {
         return $this->hasMany(TodaMembership::class, 'toda_name', 'name');

@@ -137,4 +137,9 @@ class User extends Authenticatable
     {
         return $this->role == 0 ? 'Admin' : 'Staff';
     }
+
+    public function barangay()
+    {
+        return $this->belongsTo(Barangay::class);
+    }
 }

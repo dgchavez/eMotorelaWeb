@@ -21,7 +21,9 @@ class Motorcycle extends Model
     ];
 
     protected $casts = [
-        'registration_date' => 'date'
+        'registration_date' => 'date',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
     ];
 
     // Get the operator that owns the motorcycle

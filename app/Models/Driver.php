@@ -39,4 +39,10 @@ class Driver extends Model
             $this->suffix
         ));
     }
+
+    // Add this relationship to the Driver model
+    public function barangay()
+    {
+        return $this->belongsTo(Barangay::class);
+    }
 }

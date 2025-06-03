@@ -5,18 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Operator extends Model
 {
     protected $fillable = [
-        'last_name',
         'first_name',
         'middle_name',
-        'suffix',
+        'last_name',
         'address',
         'contact_no',
-        'email'
+        'email',
+        'toda_id',
+        'status'
     ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
+    ];
+
+    // Define the relationship with Toda
+    public function toda(): BelongsTo
+    {
+        return $this->belongsTo(Toda::class);
+    }
 
     // Get all motorcycles owned by the operator
     public function motorcycles(): HasMany
@@ -51,11 +64,16 @@ class Operator extends Model
     // Get full name attribute
     public function getFullNameAttribute(): string
     {
-        return trim(sprintf('%s %s %s %s', 
+        return trim(sprintf('%s %s %s', 
             $this->first_name,
-            $this->middle_name,
-            $this->last_name,
-            $this->suffix
+            $this->middle_name ?? '',
+            $this->last_name
         ));
+    }
+
+    // Add this relationship to the Operator model
+    public function barangay(): BelongsTo
+    {
+        return $this->belongsTo(Barangay::class);
     }
 }
