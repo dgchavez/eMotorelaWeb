@@ -52,9 +52,18 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::resource('operators', \App\Http\Controllers\Admin\OperatorController::class);
-        Route::resource('drivers', DriverController::class);
+        Route::resource('drivers', \App\Http\Controllers\Admin\DriverController::class)->names([
+            'index' => 'admin.drivers.index',
+            'create' => 'admin.drivers.create',
+            'store' => 'admin.drivers.store',
+            'show' => 'admin.drivers.show',
+            'edit' => 'admin.drivers.edit', 
+            'update' => 'admin.drivers.update',
+            'destroy' => 'admin.drivers.destroy',
+        ]);
         Route::resource('applications', ApplicationController::class);
         Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
+
    
     });
 
