@@ -45,11 +45,14 @@
                                 </div>
                                 
                                 <div>
-                                    <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-                                    <select name="status" class="mt-1 w-full rounded-md border-gray-300">
+                                    <label for="status" class="block text-sm font-medium text-gray-700">Filter by Status</label>
+                                    <select name="status" 
+                                            id="status" 
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            onchange="this.form.submit()">
                                         <option value="">All Status</option>
-                                        <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
-                                        <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                                        <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                                        <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
                                     </select>
                                 </div>
 
@@ -140,22 +143,26 @@
                                             {{ $toda->operators_count }} members
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <a href="{{ route('toda.edit', $toda) }}" 
-                                               class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                                Edit
-                                            </a>
-                                            <form action="{{ route('toda.destroy', $toda) }}" 
-                                                  method="POST" 
-                                                  class="inline"
-                                                  onsubmit="return confirm('Are you sure you want to delete this TODA? This action cannot be undone.');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" 
-                                                        class="text-red-600 hover:text-red-900 {{ $toda->operators_count > 0 ? 'opacity-50 cursor-not-allowed' : '' }}"
-                                                        {{ $toda->operators_count > 0 ? 'disabled' : '' }}>
-                                                    Delete
-                                                </button>
-                                            </form>
+                                            <div class="flex items-center space-x-3">
+                                                <a href="{{ route('toda.edit', $toda) }}" 
+                                                   class="text-indigo-600 hover:text-indigo-900">
+                                                    Edit
+                                                </a>
+
+                                                <form action="{{ route('toda.toggle-status', $toda) }}" 
+                                                      method="POST" 
+                                                      class="inline-block"
+                                                      onsubmit="return confirm('Are you sure you want to {{ $toda->status === 'active' ? 'deactivate' : 'activate' }} this TODA?');">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <button type="submit" 
+                                                            class="{{ $toda->status === 'active' 
+                                                                ? 'text-red-600 hover:text-red-900' 
+                                                                : 'text-green-600 hover:text-green-900' }}">
+                                                        {{ $toda->status === 'active' ? 'Deactivate' : 'Activate' }}
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                 @empty

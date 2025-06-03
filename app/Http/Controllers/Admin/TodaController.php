@@ -8,6 +8,7 @@ use App\Models\Operator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class TodaController extends Controller
 {
@@ -17,7 +18,7 @@ class TodaController extends Controller
     public function index(Request $request)
     {
         $query = Toda::query()
-            ->withCount('operators') // Add count of operators for each TODA
+            ->withCount('operators')
             ->when($request->filled('search'), function($query) use ($request) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
@@ -28,20 +29,9 @@ class TodaController extends Controller
             })
             ->when($request->filled('status'), function($query) use ($request) {
                 $query->where('status', $request->status);
-            })
-            ->when($request->filled('date_from'), function($query) use ($request) {
-                $query->whereDate('registration_date', '>=', $request->date_from);
-            })
-            ->when($request->filled('date_to'), function($query) use ($request) {
-                $query->whereDate('registration_date', '<=', $request->date_to);
             });
 
-        // Add sorting functionality
-        $sort = $request->input('sort', 'name');
-        $direction = $request->input('direction', 'asc');
-        $query->orderBy($sort, $direction);
-
-        $todas = $query->paginate(10)->withQueryString();
+        $todas = $query->latest()->paginate(10)->withQueryString();
 
         return view('admin.todaIndex', compact('todas'));
     }
@@ -128,6 +118,8 @@ class TodaController extends Controller
         try {
             DB::beginTransaction();
 
+            $oldStatus = $toda->status;
+            
             $toda->update([
                 'name' => $validated['toda_name'],
                 'president' => $validated['toda_president'],
@@ -136,10 +128,9 @@ class TodaController extends Controller
                 'status' => $validated['status'],
             ]);
 
-            // If TODA is marked as inactive, update related operators
-            if ($validated['status'] === 'inactive') {
-                // You might want to handle operators when TODA becomes inactive
-                // For example, notify operators or mark them as inactive
+            // If TODA is being marked as inactive
+            if ($oldStatus === 'active' && $validated['status'] === 'inactive') {
+                // Update all associated operators to inactive
                 $toda->operators()->update(['status' => 'inactive']);
             }
 
@@ -165,16 +156,16 @@ class TodaController extends Controller
         try {
             DB::beginTransaction();
 
-            // Check if TODA has active operators
-            $activeOperatorsCount = $toda->operators()->where('status', 'active')->count();
+            // Check if TODA has any operators
+            $operatorsCount = $toda->operators()->count();
             
-            if ($activeOperatorsCount > 0) {
+            if ($operatorsCount > 0) {
                 return back()->withErrors([
-                    'error' => 'Cannot delete TODA. There are still ' . $activeOperatorsCount . ' active operators associated with this TODA.'
+                    'error' => "Cannot delete TODA. There are {$operatorsCount} operators associated with this TODA. Please reassign or remove the operators first."
                 ]);
             }
 
-            // Soft delete the TODA and related records
+            // Proceed with deletion
             $toda->delete();
 
             DB::commit();
@@ -187,6 +178,71 @@ class TodaController extends Controller
             
             return back()->withErrors([
                 'error' => 'An error occurred while deleting the TODA.'
+            ]);
+        }
+    }
+
+    public function toggleStatus(Request $request, Toda $toda)
+    {
+        try {
+            DB::beginTransaction();
+
+            $newStatus = $toda->status === 'active' ? 'inactive' : 'active';
+            
+            // Log the attempt
+            Log::info('Attempting to toggle TODA status', [
+                'toda_id' => $toda->id,
+                'current_status' => $toda->status,
+                'new_status' => $newStatus
+            ]);
+
+            // If being deactivated, check operators
+            if ($newStatus === 'inactive') {
+                $activeOperatorsCount = $toda->operators()->where('status', 'active')->count();
+                
+                Log::info('Checking active operators', [
+                    'toda_id' => $toda->id,
+                    'active_operators_count' => $activeOperatorsCount
+                ]);
+
+                if ($activeOperatorsCount > 0) {
+                    DB::rollBack();
+                    return back()->withErrors([
+                        'error' => "Cannot deactivate TODA. There are {$activeOperatorsCount} active operators. Please deactivate operators first."
+                    ]);
+                }
+            }
+
+            // Update the TODA status
+            $toda->status = $newStatus;
+            $toda->save();
+
+            // If deactivating, update related operators
+            if ($newStatus === 'inactive') {
+                $toda->operators()->update(['status' => 'inactive']);
+            }
+
+            DB::commit();
+
+            Log::info('Successfully toggled TODA status', [
+                'toda_id' => $toda->id,
+                'new_status' => $newStatus
+            ]);
+
+            $statusMessage = $newStatus === 'active' ? 'activated' : 'deactivated';
+            return back()->with('success', "TODA successfully {$statusMessage}.");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Error toggling TODA status', [
+                'toda_id' => $toda->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return back()->withErrors([
+                'error' => 'An error occurred while updating the TODA status. Please try again.'
             ]);
         }
     }
