@@ -40,7 +40,15 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['admin'])->prefix('admin')->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
         Route::resource('users', UserController::class);
-        Route::resource('toda', TodaController::class);
+        Route::resource('toda', \App\Http\Controllers\Admin\TodaController::class)->names([
+            'index' => 'toda.index',
+            'create' => 'toda.create',
+            'store' => 'toda.store',
+            'show' => 'toda.show',
+            'edit' => 'toda.edit',
+            'update' => 'toda.update',
+            'destroy' => 'toda.destroy',
+        ]);
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::resource('operators', \App\Http\Controllers\Admin\OperatorController::class);
