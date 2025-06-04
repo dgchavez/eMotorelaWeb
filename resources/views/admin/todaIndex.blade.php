@@ -215,16 +215,13 @@
                         </div>
                     </div>
                     <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                        <form id="statusForm" method="POST" class="sm:ml-3">
+                        <form id="statusForm" method="POST">
                             @csrf
                             @method('PUT')
                             <button type="submit" id="confirmButton" class="inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:w-auto">
                                 Confirm
                             </button>
                         </form>
-                        <button type="button" onclick="closeModal()" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
-                            Cancel
-                        </button>
                     </div>
                 </div>
             </div>
@@ -273,7 +270,10 @@
 
         // Function to close modal
         function closeModal() {
-            document.getElementById('deactivationModal').classList.add('hidden');
+            const modal = document.getElementById('deactivationModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
         }
 
         // Add event listeners when document is ready
@@ -289,8 +289,19 @@
             });
 
             // Close modal when clicking outside
-            document.getElementById('deactivationModal').addEventListener('click', function(e) {
-                if (e.target === this || e.target.classList.contains('bg-gray-500')) {
+            const modal = document.getElementById('deactivationModal');
+            const backdrop = modal.querySelector('.bg-gray-500');
+            const closeButton = modal.querySelector('button[type="button"]');
+
+            // Handle backdrop click
+            backdrop.addEventListener('click', closeModal);
+
+            // Handle close button click
+            closeButton.addEventListener('click', closeModal);
+
+            // Handle ESC key press
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
                     closeModal();
                 }
             });

@@ -150,4 +150,103 @@ class OperatorController extends Controller
             return back()->withInput()->withErrors($e->errors());
         }
     }
+
+    public function show(Operator $operator)
+    {
+        return response()->json([
+            'success' => true,
+            'html' => view('admin.operators.show-modal', compact('operator'))->render()
+        ]);
+    }
+
+    public function edit(Operator $operator)
+    {
+        $todas = Toda::where('status', 'active')->orderBy('name')->get();
+        return view('admin.operators.edit', compact('operator', 'todas'));
+    }
+
+    public function update(Request $request, Operator $operator)
+    {
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'contact_no' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'address' => 'required|string|max:1000',
+            'toda_id' => 'required|exists:todas,id',
+            'status' => 'required|in:active,inactive',
+            'mtop_no' => 'required|string|max:255',
+            'plate_no' => 'required|string|max:255',
+            'make' => 'required|string|max:255',
+            'motor_no' => 'required|string|max:255',
+            'chassis_no' => 'required|string|max:255',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Update operator details
+            $operator->update([
+                'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'],
+                'last_name' => $validated['last_name'],
+                'contact_no' => $validated['contact_no'],
+                'email' => $validated['email'],
+                'address' => $validated['address'],
+                'toda_id' => $validated['toda_id'],
+                'status' => $validated['status'],
+            ]);
+
+            // Update motorcycle details
+            if ($motorcycle = $operator->motorcycles->first()) {
+                $motorcycle->update([
+                    'mtop_no' => $validated['mtop_no'],
+                    'plate_no' => $validated['plate_no'],
+                    'make' => $validated['make'],
+                    'motor_no' => $validated['motor_no'],
+                    'chassis_no' => $validated['chassis_no'],
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->route('operators.index')
+                ->with('success', 'Operator updated successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()
+                ->with('error', 'An error occurred while updating the operator. Please try again.');
+        }
+    }
+
+    public function destroy(Operator $operator)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Log the operator details before deletion
+            \Log::info('Attempting to delete operator', [
+                'operator_id' => $operator->id,
+                'name' => $operator->full_name,
+                'toda' => $operator->toda->name ?? null,
+                'status' => $operator->status
+            ]);
+
+            // Delete the operator (this will cascade to related records)
+            $operator->delete();
+
+            DB::commit();
+            \Log::info('Operator deleted successfully');
+
+            return redirect()->route('operators.index')
+                ->with('success', 'Operator deleted successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error deleting operator: ' . $e->getMessage(), [
+                'operator_id' => $operator->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('error', 'An error occurred while deleting the operator: ' . $e->getMessage());
+        }
+    }
 }
