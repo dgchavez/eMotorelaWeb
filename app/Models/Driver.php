@@ -45,4 +45,9 @@ class Driver extends Model
     {
         return $this->belongsTo(Barangay::class);
     }
+
+    public function operators()
+    {
+        return $this->belongsToMany(Operator::class, 'driver_operator');
+    }
 }

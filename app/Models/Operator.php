@@ -43,9 +43,9 @@ class Operator extends Model
     }
 
     // Get all drivers associated with the operator
-    public function drivers(): HasMany
+    public function drivers()
     {
-        return $this->hasMany(Driver::class);
+        return $this->belongsToMany(Driver::class, 'driver_operator');
     }
 
     // Get the TODA membership of the operator

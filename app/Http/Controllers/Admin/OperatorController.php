@@ -43,8 +43,9 @@ class OperatorController extends Controller
 
     public function create()
     {
-        $todas = Toda::where('status', 'active')->get();
-        return view('admin.operatorsCreate', compact('todas'));
+        $todas = Toda::where('status', 'active')->orderBy('name')->get();
+        $drivers = Driver::orderBy('last_name')->get();
+        return view('admin.operatorsCreate', compact('todas', 'drivers'));
     }
 
     public function store(Request $request)
@@ -122,17 +123,27 @@ class OperatorController extends Controller
                 ]);
 
                 // Create drivers
+                $operator->drivers()->detach(); // Remove old links if updating
+
                 foreach ($validated['drivers'] as $driverData) {
-                    Driver::create([
-                        'operator_id' => $operator->id,
-                        'last_name' => $driverData['last_name'],
-                        'first_name' => $driverData['first_name'],
-                        'middle_name' => $driverData['middle_name'] ?? null,
-                        'address' => $driverData['address'],
-                        'contact_no' => $driverData['contact_no'],
-                        'drivers_license_no' => $driverData['drivers_license_no'],
-                        'license_expiry_date' => $driverData['license_expiry_date']
-                    ]);
+                    // Try to find an existing driver by license number (or other unique field)
+                    $driver = Driver::where('drivers_license_no', $driverData['drivers_license_no'])->first();
+
+                    if (!$driver) {
+                        $driver = Driver::create([
+                            'last_name' => $driverData['last_name'],
+                            'first_name' => $driverData['first_name'],
+                            'middle_name' => $driverData['middle_name'] ?? null,
+                            'address' => $driverData['address'],
+                            'contact_no' => $driverData['contact_no'],
+                            'drivers_license_no' => $driverData['drivers_license_no'],
+                            'license_expiry_date' => $driverData['license_expiry_date'],
+                        ]);
+                    } else {
+                        // Optionally update driver details here if you want
+                    }
+
+                    $operator->drivers()->syncWithoutDetaching([$driver->id]);
                 }
 
                 DB::commit();

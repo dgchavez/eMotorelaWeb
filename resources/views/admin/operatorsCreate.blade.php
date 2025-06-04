@@ -189,6 +189,85 @@
 
         // Initial render
         renderDriversList();
+
+        // Operator is also driver logic
+        function getOperatorDriver() {
+            return {
+                last_name: $('#last_name').val(),
+                first_name: $('#first_name').val(),
+                middle_name: $('#middle_name').val(),
+                address: $('#address').val(),
+                contact_no: $('#contact_number').val(),
+                drivers_license_no: $('#operator_license_no').val(),
+                license_expiry_date: $('#operator_license_expiry').val()
+            };
+        }
+        function isOperatorDriverPresent() {
+            return drivers.length > 0 && drivers[0]._isOperator;
+        }
+        function updateOperatorDriverInList() {
+            const opDriver = getOperatorDriver();
+            opDriver._isOperator = true;
+            if (isOperatorDriverPresent()) {
+                drivers[0] = opDriver;
+            } else {
+                drivers.unshift(opDriver);
+            }
+        }
+        function removeOperatorDriverFromList() {
+            if (isOperatorDriverPresent()) {
+                drivers.shift();
+            }
+        }
+        $('#operatorIsDriver').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#operator-license-fields').show();
+                updateOperatorDriverInList();
+                renderDriversList();
+                updateMainForm();
+            } else {
+                $('#operator-license-fields').hide();
+                removeOperatorDriverFromList();
+                renderDriversList();
+                updateMainForm();
+            }
+        });
+        // Update operator driver details when operator fields change
+        $('#last_name, #first_name, #middle_name, #address, #contact_number').on('change', function() {
+            if ($('#operatorIsDriver').is(':checked')) {
+                updateOperatorDriverInList();
+                renderDriversList();
+                updateMainForm();
+            }
+        });
+
+        // When the license fields change, update the operator driver entry
+        $('#operator_license_no, #operator_license_expiry').on('input change', function() {
+            if ($('#operatorIsDriver').is(':checked')) {
+                if (drivers.length > 0 && drivers[0]._isOperator) {
+                    drivers[0].drivers_license_no = $('#operator_license_no').val();
+                    drivers[0].license_expiry_date = $('#operator_license_expiry').val();
+                    renderDriversList();
+                    updateMainForm();
+                }
+            }
+        });
+
+        $('#existing_driver_select').on('change', function() {
+            const selected = $(this).find('option:selected');
+            if (selected.val()) {
+                $('#driver_last_name').val(selected.data('last_name'));
+                $('#driver_first_name').val(selected.data('first_name'));
+                $('#driver_middle_name').val(selected.data('middle_name'));
+                $('#driver_address').val(selected.data('address'));
+                $('#driver_contact_no').val(selected.data('contact_no'));
+                $('#driver_license_no').val(selected.data('drivers_license_no'));
+                $('#driver_license_expiry_date').val(selected.data('license_expiry_date'));
+            } else {
+                // Clear fields for new driver
+                $('#driver_last_name, #driver_first_name, #driver_middle_name, #driver_address, #driver_contact_no, #driver_license_no, #driver_license_expiry_date').val('');
+            }
+        });
     });
 </script>
 @endpush
@@ -385,9 +464,12 @@
                         <!-- Driver's Details -->
                         <div class="mb-6">
                             <h3 class="text-lg font-semibold mb-4 bg-gray-800 text-white px-4 py-2">Driver's Details</h3>
-                            
                             <div class="mb-4">
                                 <div class="flex justify-between items-center mb-4">
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="operatorIsDriver" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 mr-2">
+                                        <label for="operatorIsDriver" class="text-sm font-medium text-gray-700">Operator is also the driver</label>
+                                    </div>
                                     <h4 class="text-md font-medium text-gray-700">Drivers List</h4>
                                     <button type="button" id="openDriverModalButton" 
                                         class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center">
@@ -413,6 +495,16 @@
                                 @error('drivers')
                                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
+                            </div>
+                            <div id="operator-license-fields" class="flex gap-4 mt-2" style="display:none;">
+                                <div>
+                                    <label for="operator_license_no" class="block text-xs font-medium text-gray-700">Driver's License #</label>
+                                    <input type="text" id="operator_license_no" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
+                                </div>
+                                <div>
+                                    <label for="operator_license_expiry" class="block text-xs font-medium text-gray-700">License Expiry Date</label>
+                                    <input type="date" id="operator_license_expiry" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
+                                </div>
                             </div>
                         </div>
 
@@ -463,6 +555,25 @@
                         </div>
 
                         <form id="driverForm" class="mt-4 space-y-4">
+                            <div class="mb-2">
+                                <label for="existing_driver_select" class="block text-xs font-medium text-gray-700">Select Existing Driver</label>
+                                <select id="existing_driver_select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="">-- New Driver --</option>
+                                    @foreach($drivers as $driver)
+                                        <option value="{{ $driver->id }}"
+                                            data-last_name="{{ $driver->last_name }}"
+                                            data-first_name="{{ $driver->first_name }}"
+                                            data-middle_name="{{ $driver->middle_name }}"
+                                            data-address="{{ $driver->address }}"
+                                            data-contact_no="{{ $driver->contact_no }}"
+                                            data-drivers_license_no="{{ $driver->drivers_license_no }}"
+                                            data-license_expiry_date="{{ $driver->license_expiry_date ? $driver->license_expiry_date->format('Y-m-d') : '' }}"
+                                        >
+                                            {{ $driver->last_name }}, {{ $driver->first_name }} ({{ $driver->drivers_license_no }}) - Units: {{ $driver->operators->count() }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
                             <div>
                                 <label for="driver_last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
                                 <input type="text" id="driver_last_name" name="last_name" required 
