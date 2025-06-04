@@ -17,12 +17,15 @@ class Operator extends Model
         'contact_no',
         'email',
         'toda_id',
-        'status'
+        'status',
+        'deactivation_reason',
+        'deactivation_date'
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'updated_at' => 'datetime',
+        'deactivation_date' => 'datetime'
     ];
 
     // Define the relationship with Toda
@@ -75,5 +78,17 @@ class Operator extends Model
     public function barangay(): BelongsTo
     {
         return $this->belongsTo(Barangay::class);
+    }
+
+    // Add a scope for active operators
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    // Add a scope for inactive operators
+    public function scopeInactive($query)
+    {
+        return $query->where('status', 'inactive');
     }
 }

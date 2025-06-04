@@ -14,11 +14,15 @@
         <!-- Favicon -->
         <link rel="icon" type="image/x-icon" href="{{ asset('motorelaicon.ico') }}">
 
+        <!-- SweetAlert2 -->
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         
         <!-- Additional Scripts -->
         @stack('scripts')
+        @stack('head-scripts')
     </head>
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gray-100">

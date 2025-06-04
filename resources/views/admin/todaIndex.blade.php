@@ -149,19 +149,14 @@
                                                     Edit
                                                 </a>
 
-                                                <form action="{{ route('toda.toggle-status', $toda) }}" 
-                                                      method="POST" 
-                                                      class="inline-block"
-                                                      onsubmit="return confirm('Are you sure you want to {{ $toda->status === 'active' ? 'deactivate' : 'activate' }} this TODA?');">
-                                                    @csrf
-                                                    @method('PUT')
-                                                    <button type="submit" 
-                                                            class="{{ $toda->status === 'active' 
-                                                                ? 'text-red-600 hover:text-red-900' 
-                                                                : 'text-green-600 hover:text-green-900' }}">
-                                                        {{ $toda->status === 'active' ? 'Deactivate' : 'Activate' }}
-                                                    </button>
-                                                </form>
+                                                <button type="button" 
+                                                        data-toda-toggle="true"
+                                                        data-toda-id="{{ $toda->id }}"
+                                                        data-toda-action="{{ $toda->status === 'active' ? 'deactivate' : 'activate' }}"
+                                                        data-operator-count="{{ $toda->operators_count }}"
+                                                        class="{{ $toda->status === 'active' ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900' }}">
+                                                    {{ $toda->status === 'active' ? 'Deactivate' : 'Activate' }}
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -184,4 +179,122 @@
             </div>
         </div>
     </div>
+
+    <!-- Deactivation Modal -->
+    <div id="deactivationModal" class="fixed inset-0 z-50 hidden">
+        <!-- Modal Backdrop -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+        <!-- Modal Content -->
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div id="modalIcon" class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                </svg>
+                            </div>
+                            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                                <h3 id="modalTitle" class="text-base font-semibold leading-6 text-gray-900">Change TODA Status</h3>
+                                <div class="mt-2">
+                                    <p class="text-sm text-gray-500">
+                                        This TODA has <span id="operatorCount" class="font-semibold"></span> active operators.
+                                        <span id="modalMessage"></span>
+                                    </p>
+                                    <div id="deactivateWarning" class="mt-4">
+                                        <ul class="list-disc list-inside text-sm text-gray-600">
+                                            <li>TODA will be marked as inactive</li>
+                                            <li>All operators under this TODA will be marked as inactive</li>
+                                            <li>Operators will need to be reassigned to an active TODA to resume operations</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        <form id="statusForm" method="POST" class="sm:ml-3">
+                            @csrf
+                            @method('PUT')
+                            <button type="submit" id="confirmButton" class="inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:w-auto">
+                                Confirm
+                            </button>
+                        </form>
+                        <button type="button" onclick="closeModal()" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @push('scripts')
+    <script>
+        // Function to show modal
+        function showModal(todaId, action, operatorCount) {
+            const modal = document.getElementById('deactivationModal');
+            const form = document.getElementById('statusForm');
+            const operatorCountSpan = document.getElementById('operatorCount');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalIcon = document.getElementById('modalIcon');
+            const confirmButton = document.getElementById('confirmButton');
+            const deactivateWarning = document.getElementById('deactivateWarning');
+            
+            // Update form action
+            form.action = `{{ url('admin/toda') }}/${todaId}/toggle-status`;
+            
+            // Update operator count
+            operatorCountSpan.textContent = operatorCount;
+            
+            // Update modal content based on action
+            if (action === 'deactivate') {
+                modalTitle.textContent = 'Deactivate TODA';
+                modalMessage.textContent = 'Deactivating this TODA will also mark all associated operators as inactive.';
+                modalIcon.className = 'mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10';
+                modalIcon.querySelector('svg').className = 'h-6 w-6 text-red-600';
+                confirmButton.className = 'inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:w-auto';
+                deactivateWarning.style.display = 'block';
+            } else {
+                modalTitle.textContent = 'Activate TODA';
+                modalMessage.textContent = 'Activating this TODA will allow it to resume operations.';
+                modalIcon.className = 'mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10';
+                modalIcon.querySelector('svg').className = 'h-6 w-6 text-green-600';
+                confirmButton.className = 'inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:w-auto';
+                deactivateWarning.style.display = 'none';
+            }
+            
+            // Show modal
+            modal.classList.remove('hidden');
+        }
+
+        // Function to close modal
+        function closeModal() {
+            document.getElementById('deactivationModal').classList.add('hidden');
+        }
+
+        // Add event listeners when document is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Setup toggle buttons
+            document.querySelectorAll('[data-toda-toggle]').forEach(button => {
+                button.addEventListener('click', function() {
+                    const todaId = this.dataset.todaId;
+                    const action = this.dataset.todaAction;
+                    const operatorCount = this.dataset.operatorCount;
+                    showModal(todaId, action, operatorCount);
+                });
+            });
+
+            // Close modal when clicking outside
+            document.getElementById('deactivationModal').addEventListener('click', function(e) {
+                if (e.target === this || e.target.classList.contains('bg-gray-500')) {
+                    closeModal();
+                }
+            });
+        });
+    </script>
+    @endpush
 </x-app-layout> 
