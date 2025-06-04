@@ -161,6 +161,14 @@
                                                     </div>
                                                 </div>
 
+                                                @if($operator->status === 'active')
+                                                    <a href="{{ route('franchise-cancellations.create', $operator) }}"
+                                                       class="text-red-600 hover:text-red-900"
+                                                       onclick="return confirm('Are you sure you want to cancel this franchise? This action cannot be undone.')">
+                                                        Cancel Franchise
+                                                    </a>
+                                                @endif
+
                                                 <form action="{{ route('operators.destroy', $operator) }}" method="POST" class="inline">
                                                     @csrf
                                                     @method('DELETE')

@@ -129,4 +129,38 @@ class DocumentGenerationService
     {
         return 'MP-' . date('Y') . '-' . str_pad(mt_rand(1, 99999), 5, '0', STR_PAD_LEFT);
     }
+
+    /**
+     * Generate cancellation certificate for an operator
+     */
+    public function generateCancellationCertificate(Operator $operator)
+    {
+        try {
+            $data = [
+                'operator' => $operator->load(['toda', 'motorcycles', 'franchiseCancellation']),
+            ];
+
+            $pdf = PDF::loadView('documents.franchise-cancellation', $data);
+            $pdf->setPaper('a4', 'portrait');
+            
+            $filename = 'franchise_cancellations/' . $operator->id . '_' . time() . '.pdf';
+            
+            // Save PDF using Storage facade
+            Storage::disk('public')->put($filename, $pdf->output());
+            
+            // Verify file exists
+            if (!Storage::disk('public')->exists($filename)) {
+                throw new \Exception('Failed to save PDF file');
+            }
+            
+            return Storage::disk('public')->url($filename);
+        } catch (\Exception $e) {
+            \Log::error('Error generating cancellation certificate', [
+                'error' => $e->getMessage(),
+                'operator_id' => $operator->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
 } 

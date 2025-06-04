@@ -25,7 +25,9 @@ class Operator extends Model
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'deactivation_date' => 'datetime'
+        'deactivation_date' => 'datetime',
+        'date_of_birth' => 'date',
+        'franchise_cancelled_at' => 'date'
     ];
 
     // Define the relationship with Toda
@@ -90,5 +92,11 @@ class Operator extends Model
     public function scopeInactive($query)
     {
         return $query->where('status', 'inactive');
+    }
+
+    // Add this relationship
+    public function franchiseCancellation(): HasOne
+    {
+        return $this->hasOne(FranchiseCancellation::class);
     }
 }

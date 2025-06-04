@@ -12,6 +12,7 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ApplicationTrackingController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\FranchiseCancellationController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -79,6 +80,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/documents/{type}/{operator}', [DocumentController::class, 'generate'])->name('documents.generate');
     Route::get('/documents/preview/{type}/{operator}', [DocumentController::class, 'preview'])->name('documents.preview');
     Route::get('/documents/monthly-report', [DocumentController::class, 'monthlyReport'])->name('documents.monthly-report');
+
+    // Franchise Cancellation Routes
+    Route::get('/operators/{operator}/cancel-franchise', [FranchiseCancellationController::class, 'create'])
+        ->name('franchise-cancellations.create');
+    Route::post('/operators/{operator}/cancel-franchise', [FranchiseCancellationController::class, 'store'])
+        ->name('franchise-cancellations.store');
 
     // Document Generation Routes
     Route::middleware(['auth', 'verified'])->group(function () {
