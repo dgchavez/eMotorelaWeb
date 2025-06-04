@@ -189,28 +189,44 @@ class TodaController extends Controller
 
             $newStatus = $toda->status === 'active' ? 'inactive' : 'active';
             
+            // Count operators before status change
+            $operatorsCount = $toda->operators()->count();
+            
+            if ($operatorsCount === 0) {
+                // If no operators, just update TODA status
+                $toda->status = $newStatus;
+                $toda->save();
+                
+                DB::commit();
+                
+                return back()->with('success', 'TODA status updated successfully.');
+            }
+            
             // If deactivating
             if ($newStatus === 'inactive') {
-                // Count active operators
-                $activeOperatorsCount = $toda->operators()->where('status', 'active')->count();
-                
-                if ($activeOperatorsCount > 0) {
-                    // Instead of preventing the action, we'll show a confirmation modal
-                    if (!$request->has('confirm_deactivate')) {
-                        return back()->with([
-                            'show_deactivation_modal' => true,
-                            'toda_id' => $toda->id,
-                            'active_operators_count' => $activeOperatorsCount
-                        ]);
-                    }
-                    
-                    // If confirmed, update all operators to inactive
-                    $toda->operators()->update([
+                // Update all operators to inactive
+                $toda->operators()
+                    ->where('status', 'active')  // Only update active operators
+                    ->update([
                         'status' => 'inactive',
                         'deactivation_reason' => 'TODA Deactivated',
                         'deactivation_date' => now()
                     ]);
-                }
+            } else {
+                // If activating, update all operators that belong to this TODA
+                $toda->operators()
+                    ->where(function($query) {
+                        $query->where('deactivation_reason', 'TODA Deactivated')
+                            ->orWhere(function($q) {
+                                $q->where('status', 'inactive')
+                                  ->whereNull('deactivation_reason');
+                            });
+                    })
+                    ->update([
+                        'status' => 'active',
+                        'deactivation_reason' => null,
+                        'deactivation_date' => null
+                    ]);
             }
 
             // Update TODA status
@@ -220,15 +236,20 @@ class TodaController extends Controller
             DB::commit();
 
             $statusMessage = $newStatus === 'active' 
-                ? 'TODA has been activated successfully.'
-                : "TODA has been deactivated. All associated operators ({$activeOperatorsCount}) have been marked as inactive.";
+                ? 'TODA has been activated successfully. Eligible operators have been reactivated.'
+                : "TODA has been deactivated. All active operators ({$operatorsCount}) have been marked as inactive.";
             
             return back()->with('success', $statusMessage);
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('TODA Status Toggle Error: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'An error occurred while updating the TODA status.']);
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return the actual error message for debugging
+            return back()->withErrors([
+                'error' => 'An error occurred while updating the TODA status: ' . $e->getMessage()
+            ]);
         }
     }
 }
