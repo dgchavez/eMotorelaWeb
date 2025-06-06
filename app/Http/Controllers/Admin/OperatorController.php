@@ -172,26 +172,93 @@ class OperatorController extends Controller
 
     public function edit(Operator $operator)
     {
+        // Get the operator's first motorcycle with explicit loading
+        $motorcycle = $operator->motorcycles()->first();
+        
+        // If no motorcycle exists, create an empty object to avoid null errors
+        if (!$motorcycle) {
+            $motorcycle = new \stdClass();
+            $motorcycle->registration_date = null;
+            $motorcycle->mtop_no = '';
+            $motorcycle->motor_no = '';
+            $motorcycle->chassis_no = '';
+            $motorcycle->make = '';
+            $motorcycle->year_model = '';
+            $motorcycle->mv_file_no = '';
+            $motorcycle->plate_no = '';
+            $motorcycle->color = '';
+        } else {
+            // Ensure the date is properly formatted
+            $motorcycle->registration_date = $motorcycle->registration_date ? date('Y-m-d', strtotime($motorcycle->registration_date)) : null;
+        }
+        
+        $emergencyContact = $operator->emergencyContact;
         $todas = Toda::where('status', 'active')->orderBy('name')->get();
-        return view('admin.operators.edit', compact('operator', 'todas'));
+        $drivers = Driver::orderBy('last_name')->get();
+        
+        $driversArray = $operator->drivers->map(function($driver) use ($operator) {
+            return [
+                'id' => $driver->id,
+                'last_name' => $driver->last_name,
+                'first_name' => $driver->first_name,
+                'middle_name' => $driver->middle_name,
+                'address' => $driver->address,
+                'contact_no' => $driver->contact_no,
+                'drivers_license_no' => $driver->drivers_license_no,
+                'license_expiry_date' => $driver->license_expiry_date,
+                '_isOperator' => $operator->id === $driver->id
+            ];
+        })->toArray();
+
+        return view('admin.operators.edit', compact(
+            'operator',
+            'motorcycle',
+            'emergencyContact',
+            'todas',
+            'drivers',
+            'driversArray'
+        ));
     }
 
     public function update(Request $request, Operator $operator)
     {
+        $motorcycle = $operator->motorcycles->first();
+        
         $validated = $request->validate([
+            // Operator details
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'contact_no' => 'required|string|max:255',
+            'address' => 'required|string',
+            'contact_number' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
-            'address' => 'required|string|max:1000',
             'toda_id' => 'required|exists:todas,id',
-            'status' => 'required|in:active,inactive',
-            'mtop_no' => 'required|string|max:255',
-            'plate_no' => 'required|string|max:255',
-            'make' => 'required|string|max:255',
-            'motor_no' => 'required|string|max:255',
-            'chassis_no' => 'required|string|max:255',
+            
+            // Motorcycle details
+            'mtop_no' => 'required|string|unique:motorcycles,mtop_no,' . ($motorcycle ? $motorcycle->id : ''),
+            'motor_no' => 'required|string',
+            'chassis_no' => 'required|string',
+            'make' => 'required|string',
+            'year_model' => 'required|string',
+            'mv_file_no' => 'required|string',
+            'plate_no' => 'required|string|unique:motorcycles,plate_no,' . ($motorcycle ? $motorcycle->id : ''),
+            'color' => 'required|string',
+            'registration_date' => 'required|date',
+
+            // Emergency contact
+            'emergency_contact' => 'required|string|max:255',
+            'emergency_contact_no' => 'required|string',
+
+            // Drivers validation
+            'drivers' => 'sometimes|array',
+            'drivers.*.id' => 'sometimes|exists:drivers,id',
+            'drivers.*.last_name' => 'required_with:drivers|string|max:100',
+            'drivers.*.first_name' => 'required_with:drivers|string|max:100',
+            'drivers.*.middle_name' => 'nullable|string|max:100',
+            'drivers.*.address' => 'required_with:drivers|string',
+            'drivers.*.contact_no' => 'required_with:drivers|string|max:20',
+            'drivers.*.drivers_license_no' => 'required_with:drivers|string|max:50',
+            'drivers.*.license_expiry_date' => 'required_with:drivers|date'
         ]);
 
         DB::beginTransaction();
@@ -201,31 +268,83 @@ class OperatorController extends Controller
                 'first_name' => $validated['first_name'],
                 'middle_name' => $validated['middle_name'],
                 'last_name' => $validated['last_name'],
-                'contact_no' => $validated['contact_no'],
-                'email' => $validated['email'],
                 'address' => $validated['address'],
-                'toda_id' => $validated['toda_id'],
-                'status' => $validated['status'],
+                'contact_no' => $validated['contact_number'],
+                'email' => $validated['email'],
+                'toda_id' => $validated['toda_id']
             ]);
 
-            // Update motorcycle details
-            if ($motorcycle = $operator->motorcycles->first()) {
+            // Update or create motorcycle
+            if ($motorcycle) {
                 $motorcycle->update([
                     'mtop_no' => $validated['mtop_no'],
-                    'plate_no' => $validated['plate_no'],
-                    'make' => $validated['make'],
                     'motor_no' => $validated['motor_no'],
                     'chassis_no' => $validated['chassis_no'],
+                    'make' => $validated['make'],
+                    'year_model' => $validated['year_model'],
+                    'mv_file_no' => $validated['mv_file_no'],
+                    'plate_no' => $validated['plate_no'],
+                    'color' => $validated['color'],
+                    'registration_date' => $validated['registration_date']
                 ]);
+            } else {
+                Motorcycle::create([
+                    'operator_id' => $operator->id,
+                    'mtop_no' => $validated['mtop_no'],
+                    'motor_no' => $validated['motor_no'],
+                    'chassis_no' => $validated['chassis_no'],
+                    'make' => $validated['make'],
+                    'year_model' => $validated['year_model'],
+                    'mv_file_no' => $validated['mv_file_no'],
+                    'plate_no' => $validated['plate_no'],
+                    'color' => $validated['color'],
+                    'registration_date' => $validated['registration_date']
+                ]);
+            }
+
+            // Update or create emergency contact
+            $operator->emergencyContact()->updateOrCreate(
+                ['operator_id' => $operator->id],
+                [
+                    'contact_person' => $validated['emergency_contact'],
+                    'tel_no' => $validated['emergency_contact_no']
+                ]
+            );
+
+            // Handle drivers if present in the request
+            if (isset($validated['drivers'])) {
+                // Get existing driver IDs to maintain
+                $driverIds = [];
+                
+                foreach ($validated['drivers'] as $driverData) {
+                    $driver = Driver::updateOrCreate(
+                        ['drivers_license_no' => $driverData['drivers_license_no']],
+                        [
+                            'last_name' => $driverData['last_name'],
+                            'first_name' => $driverData['first_name'],
+                            'middle_name' => $driverData['middle_name'] ?? null,
+                            'address' => $driverData['address'],
+                            'contact_no' => $driverData['contact_no'],
+                            'license_expiry_date' => $driverData['license_expiry_date'],
+                        ]
+                    );
+                    
+                    $driverIds[] = $driver->id;
+                }
+                
+                // Sync the driver relationships
+                $operator->drivers()->sync($driverIds);
             }
 
             DB::commit();
             return redirect()->route('operators.index')
                 ->with('success', 'Operator updated successfully.');
+
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Update error: ' . $e->getMessage());
             return back()->withInput()
-                ->with('error', 'An error occurred while updating the operator. Please try again.');
+                ->withErrors(['error' => 'An error occurred while updating the operator: ' . $e->getMessage()]);
         }
     }
 

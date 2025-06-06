@@ -14,8 +14,8 @@ class DriverController extends Controller
     public function index(Request $request)
     {
         $query = Driver::query()
-            ->with(['operator' => function($query) {
-                $query->with('toda');
+            ->with(['operators' => function($query) {
+                $query->with(['toda', 'motorcycles']);
             }]);
 
         // Search functionality
@@ -30,7 +30,9 @@ class DriverController extends Controller
 
         // Filter by operator
         if ($request->has('operator_id') && $request->operator_id != '') {
-            $query->where('operator_id', $request->operator_id);
+            $query->whereHas('operators', function($q) use ($request) {
+                $q->where('operators.id', $request->operator_id);
+            });
         }
 
         // Filter by license status
@@ -49,32 +51,99 @@ class DriverController extends Controller
         return view('admin.driversIndex', compact('drivers', 'operators'));
     }
 
+    public function create()
+    {
+        $operators = Operator::with('motorcycles')->get();
+        return view('admin.driversCreate', compact('operators'));
+    }
+
     public function edit(Driver $driver)
     {
-        $operators = Operator::orderBy('last_name')->get();
+        $operators = Operator::with('motorcycles')->get();
         return view('admin.driversEdit', compact('driver', 'operators'));
     }
 
     public function update(Request $request, Driver $driver)
     {
         $validated = $request->validate([
-            'operator_id' => 'required|exists:operators,id',
-            'last_name' => 'required|string|max:100',
-            'first_name' => 'required|string|max:100',
-            'middle_name' => 'nullable|string|max:100',
+            'last_name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'suffix' => 'nullable|string|max:255',
             'address' => 'required|string',
-            'contact_no' => 'required|string|max:20',
-            'drivers_license_no' => 'required|string|max:50',
-            'license_expiry_date' => 'required|date|after:today',
+            'contact_no' => 'required|string|max:255',
+            'drivers_license_no' => 'required|string|max:255|unique:drivers,drivers_license_no,' . $driver->id,
+            'license_expiry_date' => 'required|date',
+            'operator_ids' => 'required|array',
+            'operator_ids.*' => 'exists:operators,id'
         ]);
 
         try {
-            $driver->update($validated);
+            DB::beginTransaction();
+
+            $driver->update([
+                'last_name' => $validated['last_name'],
+                'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'],
+                'suffix' => $validated['suffix'],
+                'address' => $validated['address'],
+                'contact_no' => $validated['contact_no'],
+                'drivers_license_no' => $validated['drivers_license_no'],
+                'license_expiry_date' => $validated['license_expiry_date'],
+            ]);
+
+            $driver->operators()->sync($validated['operator_ids']);
+
+            DB::commit();
+
             return redirect()->route('admin.drivers.index')
                 ->with('success', 'Driver updated successfully.');
         } catch (\Exception $e) {
+            DB::rollBack();
             return back()->withInput()
-                ->withErrors(['error' => 'An error occurred while updating the driver.']);
+                ->with('error', 'Failed to update driver. Please try again.');
+        }
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'last_name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'suffix' => 'nullable|string|max:255',
+            'address' => 'required|string',
+            'contact_no' => 'required|string|max:255',
+            'drivers_license_no' => 'required|string|max:255|unique:drivers',
+            'license_expiry_date' => 'required|date',
+            'operator_ids' => 'required|array',
+            'operator_ids.*' => 'exists:operators,id'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $driver = Driver::create([
+                'last_name' => $validated['last_name'],
+                'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'],
+                'suffix' => $validated['suffix'],
+                'address' => $validated['address'],
+                'contact_no' => $validated['contact_no'],
+                'drivers_license_no' => $validated['drivers_license_no'],
+                'license_expiry_date' => $validated['license_expiry_date'],
+            ]);
+
+            $driver->operators()->attach($validated['operator_ids']);
+
+            DB::commit();
+
+            return redirect()->route('admin.drivers.index')
+                ->with('success', 'Driver created successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()
+                ->with('error', 'Failed to create driver. Please try again.');
         }
     }
 
@@ -86,6 +155,55 @@ class DriverController extends Controller
                 ->with('success', 'Driver removed successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'An error occurred while removing the driver.']);
+        }
+    }
+
+    public function getMotorcycles(Driver $driver)
+    {
+        try {
+            // Get all operators associated with this driver with their motorcycles
+            $operators = $driver->operators()
+                ->with(['motorcycles', 'toda'])
+                ->get();
+            
+            $units = $operators->flatMap(function($operator) {
+                return $operator->motorcycles->map(function($motorcycle) use ($operator) {
+                    return [
+                        'operator' => [
+                            'name' => $operator->last_name . ', ' . $operator->first_name,
+                            'toda' => $operator->toda ? $operator->toda->name : 'N/A'
+                        ],
+                        'unit' => [
+                            'plate_no' => $motorcycle->plate_no,
+                            'mtop_no' => $motorcycle->mtop_no,
+                            'make' => $motorcycle->make,
+                            'year_model' => $motorcycle->year_model,
+                            'color' => $motorcycle->color,
+                            'motor_no' => $motorcycle->motor_no,
+                            'chassis_no' => $motorcycle->chassis_no,
+                            'mv_file_no' => $motorcycle->mv_file_no,
+                            'registration_date' => $motorcycle->registration_date->format('M d, Y')
+                        ]
+                    ];
+                });
+            })->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'driver' => [
+                        'name' => $driver->full_name,
+                        'license_no' => $driver->drivers_license_no
+                    ],
+                    'units' => $units
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching motorcycles: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch unit data: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

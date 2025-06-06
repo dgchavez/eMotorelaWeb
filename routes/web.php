@@ -58,6 +58,8 @@ Route::middleware(['auth'])->group(function () {
             'update' => 'admin.drivers.update',
             'destroy' => 'admin.drivers.destroy',
         ]);
+        Route::get('/drivers/{driver}/motorcycles', [\App\Http\Controllers\Admin\DriverController::class, 'getMotorcycles'])
+            ->name('admin.drivers.motorcycles');
         Route::resource('applications', ApplicationController::class);
         Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
 
