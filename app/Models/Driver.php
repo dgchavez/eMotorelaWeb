@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Driver extends Model
 {
     protected $fillable = [
-        'operator_id',
         'last_name',
         'first_name',
         'middle_name',
@@ -23,10 +22,11 @@ class Driver extends Model
         'license_expiry_date' => 'date'
     ];
 
-    // Get the operator that employs the driver
-    public function operator(): BelongsTo
+    // Get all operators associated with this driver
+    public function operators()
     {
-        return $this->belongsTo(Operator::class);
+        return $this->belongsToMany(Operator::class, 'driver_operator')
+            ->withTimestamps();
     }
 
     // Get full name attribute

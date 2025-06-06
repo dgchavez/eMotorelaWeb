@@ -17,12 +17,17 @@ class Operator extends Model
         'contact_no',
         'email',
         'toda_id',
-        'status'
+        'status',
+        'deactivation_reason',
+        'deactivation_date'
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'updated_at' => 'datetime',
+        'deactivation_date' => 'datetime',
+        'date_of_birth' => 'date',
+        'franchise_cancelled_at' => 'date'
     ];
 
     // Define the relationship with Toda
@@ -38,9 +43,9 @@ class Operator extends Model
     }
 
     // Get all drivers associated with the operator
-    public function drivers(): HasMany
+    public function drivers()
     {
-        return $this->hasMany(Driver::class);
+        return $this->belongsToMany(Driver::class, 'driver_operator');
     }
 
     // Get the TODA membership of the operator
@@ -75,5 +80,23 @@ class Operator extends Model
     public function barangay(): BelongsTo
     {
         return $this->belongsTo(Barangay::class);
+    }
+
+    // Add a scope for active operators
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    // Add a scope for inactive operators
+    public function scopeInactive($query)
+    {
+        return $query->where('status', 'inactive');
+    }
+
+    // Add this relationship
+    public function franchiseCancellation(): HasOne
+    {
+        return $this->hasOne(FranchiseCancellation::class);
     }
 }

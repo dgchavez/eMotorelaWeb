@@ -10,6 +10,9 @@ use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\ApplicationTrackingController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\FranchiseCancellationController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -55,6 +58,8 @@ Route::middleware(['auth'])->group(function () {
             'update' => 'admin.drivers.update',
             'destroy' => 'admin.drivers.destroy',
         ]);
+        Route::get('/drivers/{driver}/motorcycles', [\App\Http\Controllers\Admin\DriverController::class, 'getMotorcycles'])
+            ->name('admin.drivers.motorcycles');
         Route::resource('applications', ApplicationController::class);
         Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
 
@@ -65,6 +70,31 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['staff'])->prefix('staff')->group(function () {
         Route::get('/dashboard', [StaffDashboardController::class, 'index'])->name('staff.dashboard');
         Route::resource('drivers', DriverController::class);
+    });
+
+    // Application Tracking Routes
+    Route::get('/track/{trackingCode}', [ApplicationTrackingController::class, 'track'])
+        ->name('application.track');
+    Route::post('/track', [ApplicationTrackingController::class, 'search'])
+        ->name('application.search');
+
+    // Document routes
+    Route::get('/documents/{type}/{operator}', [DocumentController::class, 'generate'])->name('documents.generate');
+    Route::get('/documents/preview/{type}/{operator}', [DocumentController::class, 'preview'])->name('documents.preview');
+    Route::get('/documents/monthly-report', [DocumentController::class, 'monthlyReport'])->name('documents.monthly-report');
+
+    // Franchise Cancellation Routes
+    Route::get('/operators/{operator}/cancel-franchise', [FranchiseCancellationController::class, 'create'])
+        ->name('franchise-cancellations.create');
+    Route::post('/operators/{operator}/cancel-franchise', [FranchiseCancellationController::class, 'store'])
+        ->name('franchise-cancellations.store');
+
+    // Document Generation Routes
+    Route::middleware(['auth', 'verified'])->group(function () {
+        Route::get('/documents/franchise-certificate/{operator}', [DocumentController::class, 'generateFranchiseCertificate'])
+            ->name('documents.franchise-certificate');
+        Route::get('/documents/motorela-permit/{operator}', [DocumentController::class, 'generateMotorelaPermit'])
+            ->name('documents.motorela-permit');
     });
 });
 

@@ -29,8 +29,8 @@
             }
         });
 
-        // Rest of your existing JavaScript code converted to jQuery
-        let drivers = [];
+        // Initialize drivers array with existing data
+        let drivers = @json($driversArray);
 
         $('#driverForm').on('submit', function(e) {
             e.preventDefault();
@@ -283,8 +283,9 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 bg-white border-b border-gray-200">
-                    <form action="{{ route('operators.store') }}" method="POST">
+                    <form action="{{ route('operators.update', $operator->id) }}" method="POST">
                         @csrf
+                        @method('PUT')
                         
                         @if($errors->any())
                             <div class="mb-4 p-4 bg-red-50 border-l-4 border-red-500">
@@ -300,21 +301,9 @@
                                         </h3>
                                         <div class="mt-2 text-sm text-red-700">
                                             <ul class="list-disc pl-5 space-y-1">
-                                                @if($errors->has('operator_error'))
-                                                    <li>{{ $errors->first('operator_error') }}</li>
-                                                @endif
-                                                @if($errors->has('motorcycle_error'))
-                                                    <li>{{ $errors->first('motorcycle_error') }}</li>
-                                                @endif
-                                                @if($errors->has('emergency_contact_error'))
-                                                    <li>{{ $errors->first('emergency_contact_error') }}</li>
-                                                @endif
-                                                @if($errors->has('database_error'))
-                                                    <li>{{ $errors->first('database_error') }}</li>
-                                                @endif
-                                                @if($errors->has('error'))
-                                                    <li>{{ $errors->first('error') }}</li>
-                                                @endif
+                                                @foreach($errors->all() as $error)
+                                                    <li>{{ $error }}</li>
+                                                @endforeach
                                             </ul>
                                         </div>
                                     </div>
@@ -328,7 +317,8 @@
                             <div class="grid grid-cols-3 gap-4">
                                 <div>
                                     <label for="last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
-                                    <input type="text" name="last_name" id="last_name" value="{{ old('last_name') }}"
+                                    <input type="text" name="last_name" id="last_name" 
+                                        value="{{ old('last_name', $operator->last_name) }}"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     @error('last_name')
                                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -336,7 +326,8 @@
                                 </div>
                                 <div>
                                     <label for="first_name" class="block text-sm font-medium text-gray-700">First Name</label>
-                                    <input type="text" name="first_name" id="first_name" value="{{ old('first_name') }}"
+                                    <input type="text" name="first_name" id="first_name" 
+                                        value="{{ old('first_name', $operator->first_name) }}"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     @error('first_name')
                                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -344,14 +335,16 @@
                                 </div>
                                 <div>
                                     <label for="middle_name" class="block text-sm font-medium text-gray-700">Middle Name</label>
-                                    <input type="text" name="middle_name" id="middle_name" value="{{ old('middle_name') }}"
+                                    <input type="text" name="middle_name" id="middle_name" 
+                                        value="{{ old('middle_name', $operator->middle_name) }}"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 </div>
                             </div>
 
                             <div class="mt-4">
                                 <label for="address" class="block text-sm font-medium text-gray-700">Operator's Address</label>
-                                <input type="text" name="address" id="address" value="{{ old('address') }}"
+                                <input type="text" name="address" id="address" 
+                                    value="{{ old('address', $operator->address) }}"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 @error('address')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -361,74 +354,14 @@
                             <div class="grid grid-cols-2 gap-4 mt-4">
                                 <div>
                                     <label for="contact_number" class="block text-sm font-medium text-gray-700">Contact No.</label>
-                                    <input type="text" name="contact_number" id="contact_number" value="{{ old('contact_number') }}"
+                                    <input type="text" name="contact_number" id="contact_number" 
+                                        value="{{ old('contact_number', $operator->contact_no) }}"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    @error('contact_number')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
                                 </div>
                                 <div>
                                     <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
-                                    <input type="email" name="email" id="email" value="{{ old('email') }}"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Motorcycle Unit Detail -->
-                        <div class="mb-6">
-                            <h3 class="text-lg font-semibold mb-4 bg-gray-800 text-white px-4 py-2">Motorcycle Unit Detail</h3>
-                            <div class="grid grid-cols-1 gap-4">
-                                <div>
-                                    <label for="mtop_no" class="block text-sm font-medium text-gray-700">MTOP #</label>
-                                    <input type="text" name="mtop_no" id="mtop_no" value="{{ old('mtop_no') }}"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    @error('mtop_no')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-4 gap-4 mt-4">
-                                <div>
-                                    <label for="motor_no" class="block text-sm font-medium text-gray-700">Motor #</label>
-                                    <input type="text" name="motor_no" id="motor_no" value="{{ old('motor_no') }}"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                </div>
-                                <div>
-                                    <label for="chassis_no" class="block text-sm font-medium text-gray-700">Chassis #</label>
-                                    <input type="text" name="chassis_no" id="chassis_no" value="{{ old('chassis_no') }}"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                </div>
-                                <div>
-                                    <label for="make" class="block text-sm font-medium text-gray-700">Make</label>
-                                    <input type="text" name="make" id="make" value="{{ old('make') }}"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                </div>
-                                <div>
-                                    <label for="year_model" class="block text-sm font-medium text-gray-700">Year Model</label>
-                                    <input type="text" name="year_model" id="year_model" value="{{ old('year_model') }}"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-3 gap-4 mt-4">
-                                <div>
-                                    <label for="mv_file_no" class="block text-sm font-medium text-gray-700">MV File #</label>
-                                    <input type="text" name="mv_file_no" id="mv_file_no" value="{{ old('mv_file_no') }}"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                </div>
-                                <div>
-                                    <label for="plate_no" class="block text-sm font-medium text-gray-700">Plate #</label>
-                                    <input type="text" name="plate_no" id="plate_no" value="{{ old('plate_no') }}"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    @error('plate_no')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                                <div>
-                                    <label for="color" class="block text-sm font-medium text-gray-700">Color</label>
-                                    <input type="text" name="color" id="color" value="{{ old('color') }}"
+                                    <input type="email" name="email" id="email" 
+                                        value="{{ old('email', $operator->email) }}"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 </div>
                             </div>
@@ -444,7 +377,8 @@
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                         <option value="">Select TODA</option>
                                         @foreach($todas as $toda)
-                                            <option value="{{ $toda->id }}" {{ old('toda_id') == $toda->id ? 'selected' : '' }}>
+                                            <option value="{{ $toda->id }}" 
+                                                {{ old('toda_id', $operator->toda_id) == $toda->id ? 'selected' : '' }}>
                                                 {{ $toda->name }}
                                             </option>
                                         @endforeach
@@ -455,8 +389,97 @@
                                 </div>
                                 <div>
                                     <label for="registration_date" class="block text-sm font-medium text-gray-700">Registration Date</label>
-                                    <input type="date" name="registration_date" id="registration_date" value="{{ old('registration_date') }}"
+                                    <input type="date" name="registration_date" id="registration_date" 
+                                        value="{{ old('registration_date', $motorcycle->registration_date ? date('Y-m-d', strtotime($motorcycle->registration_date)) : '') }}"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error('registration_date')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Motorcycle Unit Detail -->
+                        <div class="mb-6">
+                            <h3 class="text-lg font-semibold mb-4 bg-gray-800 text-white px-4 py-2">Motorcycle Unit Detail</h3>
+                            <div class="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label for="mtop_no" class="block text-sm font-medium text-gray-700">MTOP #</label>
+                                    <input type="text" name="mtop_no" id="mtop_no" 
+                                        value="{{ old('mtop_no', $motorcycle->mtop_no ?? '') }}"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error('mtop_no')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-4 gap-4 mt-4">
+                                <div>
+                                    <label for="motor_no" class="block text-sm font-medium text-gray-700">Motor #</label>
+                                    <input type="text" name="motor_no" id="motor_no" 
+                                        value="{{ old('motor_no', $motorcycle->motor_no ?? '') }}"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error('motor_no')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div>
+                                    <label for="chassis_no" class="block text-sm font-medium text-gray-700">Chassis #</label>
+                                    <input type="text" name="chassis_no" id="chassis_no" 
+                                        value="{{ old('chassis_no', $motorcycle->chassis_no ?? '') }}"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error('chassis_no')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div>
+                                    <label for="make" class="block text-sm font-medium text-gray-700">Make</label>
+                                    <input type="text" name="make" id="make" 
+                                        value="{{ old('make', $motorcycle->make ?? '') }}"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error('make')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div>
+                                    <label for="year_model" class="block text-sm font-medium text-gray-700">Year Model</label>
+                                    <input type="text" name="year_model" id="year_model" 
+                                        value="{{ old('year_model', $motorcycle->year_model ?? '') }}"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error('year_model')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-4 mt-4">
+                                <div>
+                                    <label for="mv_file_no" class="block text-sm font-medium text-gray-700">MV File #</label>
+                                    <input type="text" name="mv_file_no" id="mv_file_no" 
+                                        value="{{ old('mv_file_no', $motorcycle->mv_file_no ?? '') }}"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error('mv_file_no')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div>
+                                    <label for="plate_no" class="block text-sm font-medium text-gray-700">Plate #</label>
+                                    <input type="text" name="plate_no" id="plate_no" 
+                                        value="{{ old('plate_no', $motorcycle->plate_no ?? '') }}"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error('plate_no')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div>
+                                    <label for="color" class="block text-sm font-medium text-gray-700">Color</label>
+                                    <input type="text" name="color" id="color" 
+                                        value="{{ old('color', $motorcycle->color ?? '') }}"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error('color')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
                                 </div>
                             </div>
                         </div>
@@ -514,12 +537,14 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label for="emergency_contact" class="block text-sm font-medium text-gray-700">Contact Person</label>
-                                    <input type="text" name="emergency_contact" id="emergency_contact" value="{{ old('emergency_contact') }}"
+                                    <input type="text" name="emergency_contact" id="emergency_contact" 
+                                        value="{{ old('emergency_contact', $emergencyContact->contact_person) }}"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 </div>
                                 <div>
                                     <label for="emergency_contact_no" class="block text-sm font-medium text-gray-700">Tel.No./CP no.</label>
-                                    <input type="text" name="emergency_contact_no" id="emergency_contact_no" value="{{ old('emergency_contact_no') }}"
+                                    <input type="text" name="emergency_contact_no" id="emergency_contact_no" 
+                                        value="{{ old('emergency_contact_no', $emergencyContact->tel_no) }}"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 </div>
                             </div>
@@ -528,7 +553,7 @@
                         <div class="mt-6 flex items-center justify-end gap-x-6">
                             <a href="{{ route('operators.index') }}" class="text-sm font-semibold leading-6 text-gray-900">Cancel</a>
                             <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                Create MTOP
+                                Update MTOP
                             </button>
                         </div>
                     </form>
