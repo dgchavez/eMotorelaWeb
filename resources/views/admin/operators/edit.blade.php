@@ -4,6 +4,18 @@
     $(document).ready(function() {
         console.log('jQuery loaded and document ready');
         
+        // Initialize drivers array with existing data
+        let drivers = @json($driversArray);
+        
+        // Check if operator is already a driver and set up initial state
+        const operatorDriver = @json($operatorDriver);
+        if (operatorDriver) {
+            $('#operatorIsDriver').prop('checked', true);
+            $('#operator-license-fields').show();
+            $('#operator_license_no').val(operatorDriver.drivers_license_no);
+            $('#operator_license_expiry').val(operatorDriver.license_expiry_date);
+        }
+
         // Event handler for opening modal
         $('#openDriverModalButton').on('click', function(e) {
             e.preventDefault();
@@ -28,9 +40,6 @@
                 $('body').removeClass('overflow-hidden');
             }
         });
-
-        // Initialize drivers array with existing data
-        let drivers = @json($driversArray);
 
         $('#driverForm').on('submit', function(e) {
             e.preventDefault();
@@ -68,7 +77,6 @@
             }
         });
 
-        // Your existing functions converted to jQuery
         function validateForm() {
             removeValidationErrors();
             let isValid = true;
@@ -81,8 +89,6 @@
                         .insertAfter(this);
                 }
             });
-
-            // Add your other validation logic here
 
             return isValid;
         }
@@ -153,8 +159,8 @@
                             <div class="flex-grow">
                                 <div class="flex items-center gap-2">
                                     <p class="font-medium text-gray-900">${driver.last_name}, ${driver.first_name} ${driver.middle_name || ''}</p>
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                        Driver ${index + 1}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold ${driver._isOperator ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                                        ${driver._isOperator ? 'Operator-Driver' : 'Driver ' + (index + 1)}
                                     </span>
                                 </div>
                                 <div class="mt-1 text-sm text-gray-500 space-y-1">
@@ -164,12 +170,14 @@
                                     <p class="text-xs text-gray-400">${driver.address}</p>
                                 </div>
                             </div>
-                            <button type="button" class="remove-driver-button ml-4 text-red-500 hover:text-red-700 font-medium flex items-center" data-index="${index}">
-                                <svg class="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                                Remove
-                            </button>
+                            ${!driver._isOperator ? `
+                                <button type="button" class="remove-driver-button ml-4 text-red-500 hover:text-red-700 font-medium flex items-center" data-index="${index}">
+                                    <svg class="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Remove
+                                </button>
+                            ` : ''}
                         </div>
                     `;
                     $content.append(driverItem);
@@ -190,65 +198,67 @@
         // Initial render
         renderDriversList();
 
-        // Operator is also driver logic
         function getOperatorDriver() {
             return {
+                id: {{ $operator->id }},
                 last_name: $('#last_name').val(),
                 first_name: $('#first_name').val(),
                 middle_name: $('#middle_name').val(),
                 address: $('#address').val(),
                 contact_no: $('#contact_number').val(),
                 drivers_license_no: $('#operator_license_no').val(),
-                license_expiry_date: $('#operator_license_expiry').val()
+                license_expiry_date: $('#operator_license_expiry').val(),
+                _isOperator: true
             };
         }
-        function isOperatorDriverPresent() {
-            return drivers.length > 0 && drivers[0]._isOperator;
-        }
+
         function updateOperatorDriverInList() {
-            const opDriver = getOperatorDriver();
-            opDriver._isOperator = true;
-            if (isOperatorDriverPresent()) {
-                drivers[0] = opDriver;
-            } else {
+            // First remove any existing operator-driver
+            drivers = drivers.filter(driver => !driver._isOperator);
+            
+            // Only add operator as driver if license fields are filled
+            if ($('#operator_license_no').val() && $('#operator_license_expiry').val()) {
+                const opDriver = getOperatorDriver();
                 drivers.unshift(opDriver);
             }
+            
+            renderDriversList();
+            updateMainForm();
         }
+
         function removeOperatorDriverFromList() {
-            if (isOperatorDriverPresent()) {
-                drivers.shift();
-            }
+            drivers = drivers.filter(driver => !driver._isOperator);
+            renderDriversList();
+            updateMainForm();
         }
+
         $('#operatorIsDriver').on('change', function() {
             if ($(this).is(':checked')) {
                 $('#operator-license-fields').show();
-                updateOperatorDriverInList();
-                renderDriversList();
-                updateMainForm();
+                // Only add operator as driver if license fields are filled
+                if ($('#operator_license_no').val() && $('#operator_license_expiry').val()) {
+                    updateOperatorDriverInList();
+                }
             } else {
                 $('#operator-license-fields').hide();
                 removeOperatorDriverFromList();
-                renderDriversList();
-                updateMainForm();
-            }
-        });
-        // Update operator driver details when operator fields change
-        $('#last_name, #first_name, #middle_name, #address, #contact_number').on('change', function() {
-            if ($('#operatorIsDriver').is(':checked')) {
-                updateOperatorDriverInList();
-                renderDriversList();
-                updateMainForm();
             }
         });
 
-        // When the license fields change, update the operator driver entry
-        $('#operator_license_no, #operator_license_expiry').on('input change', function() {
+        // Update operator-driver when license fields change
+        $('#operator_license_no, #operator_license_expiry').on('change', function() {
             if ($('#operatorIsDriver').is(':checked')) {
-                if (drivers.length > 0 && drivers[0]._isOperator) {
-                    drivers[0].drivers_license_no = $('#operator_license_no').val();
-                    drivers[0].license_expiry_date = $('#operator_license_expiry').val();
-                    renderDriversList();
-                    updateMainForm();
+                if ($('#operator_license_no').val() && $('#operator_license_expiry').val()) {
+                    updateOperatorDriverInList();
+                }
+            }
+        });
+
+        // Update operator-driver when operator details change
+        $('#last_name, #first_name, #middle_name, #address, #contact_number').on('change', function() {
+            if ($('#operatorIsDriver').is(':checked')) {
+                if ($('#operator_license_no').val() && $('#operator_license_expiry').val()) {
+                    updateOperatorDriverInList();
                 }
             }
         });

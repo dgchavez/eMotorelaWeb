@@ -196,7 +196,13 @@ class OperatorController extends Controller
         $todas = Toda::where('status', 'active')->orderBy('name')->get();
         $drivers = Driver::orderBy('last_name')->get();
         
-        $driversArray = $operator->drivers->map(function($driver) use ($operator) {
+        // Check if operator is also a driver
+        $operatorDriver = Driver::where('drivers_license_no', '!=', '')
+            ->whereHas('operators', function($query) use ($operator) {
+                $query->where('operators.id', $operator->id);
+            })->first();
+        
+        $driversArray = $operator->drivers->map(function($driver) use ($operator, $operatorDriver) {
             return [
                 'id' => $driver->id,
                 'last_name' => $driver->last_name,
@@ -205,8 +211,8 @@ class OperatorController extends Controller
                 'address' => $driver->address,
                 'contact_no' => $driver->contact_no,
                 'drivers_license_no' => $driver->drivers_license_no,
-                'license_expiry_date' => $driver->license_expiry_date,
-                '_isOperator' => $operator->id === $driver->id
+                'license_expiry_date' => $driver->license_expiry_date ? $driver->license_expiry_date->format('Y-m-d') : null,
+                '_isOperator' => $operatorDriver && $driver->id === $operatorDriver->id
             ];
         })->toArray();
 
@@ -216,7 +222,8 @@ class OperatorController extends Controller
             'emergencyContact',
             'todas',
             'drivers',
-            'driversArray'
+            'driversArray',
+            'operatorDriver'
         ));
     }
 
@@ -256,12 +263,14 @@ class OperatorController extends Controller
             'drivers.*.first_name' => 'required_with:drivers|string|max:100',
             'drivers.*.middle_name' => 'nullable|string|max:100',
             'drivers.*.address' => 'required_with:drivers|string',
-            'drivers.*.contact_no' => 'required_with:drivers|string|max:20',
-            'drivers.*.drivers_license_no' => 'required_with:drivers|string|max:50',
-            'drivers.*.license_expiry_date' => 'required_with:drivers|date'
+            'drivers.*.contact_no' => 'required|string',
+            'drivers.*.drivers_license_no' => 'required|string|max:50',
+            'drivers.*.license_expiry_date' => 'required|date',
+            'drivers.*._isOperator' => 'sometimes|boolean'
         ]);
 
         DB::beginTransaction();
+
         try {
             // Update operator details
             $operator->update([
@@ -288,8 +297,7 @@ class OperatorController extends Controller
                     'registration_date' => $validated['registration_date']
                 ]);
             } else {
-                Motorcycle::create([
-                    'operator_id' => $operator->id,
+                $operator->motorcycles()->create([
                     'mtop_no' => $validated['mtop_no'],
                     'motor_no' => $validated['motor_no'],
                     'chassis_no' => $validated['chassis_no'],
@@ -302,7 +310,7 @@ class OperatorController extends Controller
                 ]);
             }
 
-            // Update or create emergency contact
+            // Update emergency contact
             $operator->emergencyContact()->updateOrCreate(
                 ['operator_id' => $operator->id],
                 [
@@ -311,12 +319,13 @@ class OperatorController extends Controller
                 ]
             );
 
-            // Handle drivers if present in the request
+            // Handle drivers
             if (isset($validated['drivers'])) {
                 // Get existing driver IDs to maintain
                 $driverIds = [];
                 
                 foreach ($validated['drivers'] as $driverData) {
+                    // Create or update the driver
                     $driver = Driver::updateOrCreate(
                         ['drivers_license_no' => $driverData['drivers_license_no']],
                         [
@@ -334,6 +343,9 @@ class OperatorController extends Controller
                 
                 // Sync the driver relationships
                 $operator->drivers()->sync($driverIds);
+            } else {
+                // If no drivers are provided, detach all drivers
+                $operator->drivers()->detach();
             }
 
             DB::commit();
