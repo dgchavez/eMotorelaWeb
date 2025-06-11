@@ -23,21 +23,26 @@ class User extends Authenticatable
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<string>
+     * @var array<int, string>
      */
     protected $fillable = [
         'name',
+        'first_name',
+        'middle_name',
+        'last_name',
+        'suffix',
         'email',
         'password',
         'role',
-        'contact_number',
+        'contact_no',
+        'address',
         'is_active'
     ];
 
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var array<string>
+     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -45,9 +50,9 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The attributes that should be cast.
      *
-     * @return array<string, string>
+     * @var array<string, string>
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
@@ -133,9 +138,27 @@ class User extends Authenticatable
         ];
     }
 
-    public function getRoleName()
+    /**
+     * Get the user's full name.
+     */
+    public function getFullNameAttribute(): string
     {
-        return $this->role == 0 ? 'Admin' : 'Staff';
+        $nameParts = array_filter([
+            $this->first_name,
+            $this->middle_name,
+            $this->last_name,
+            $this->suffix
+        ]);
+
+        return implode(' ', $nameParts);
+    }
+
+    /**
+     * Get the role display name
+     */
+    public function getRoleName(): string
+    {
+        return $this->role === 0 ? 'Admin' : 'Staff';
     }
 
     public function barangay()

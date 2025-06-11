@@ -62,8 +62,7 @@ Route::middleware(['auth'])->group(function () {
             ->name('admin.drivers.motorcycles');
         Route::resource('applications', ApplicationController::class);
         Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
-
- 
+        Route::post('/operators/find-driver', [App\Http\Controllers\Admin\OperatorController::class, 'findDriver'])->name('operators.find-driver');
     });
 
     // Staff Routes

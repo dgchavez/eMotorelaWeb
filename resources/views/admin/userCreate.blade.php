@@ -12,11 +12,39 @@
                     <form method="POST" action="{{ route('users.store') }}">
                         @csrf
 
-                        <!-- Name -->
+                        <!-- First Name -->
                         <div class="mb-4">
-                            <x-input-label for="name" :value="__('Name')" />
-                            <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus />
-                            <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                            <x-input-label for="first_name" :value="__('First Name')" />
+                            <x-text-input id="first_name" class="block mt-1 w-full" type="text" name="first_name" :value="old('first_name')" required autofocus />
+                            <x-input-error :messages="$errors->get('first_name')" class="mt-2" />
+                        </div>
+
+                        <!-- Middle Name -->
+                        <div class="mb-4">
+                            <x-input-label for="middle_name" :value="__('Middle Name')" />
+                            <x-text-input id="middle_name" class="block mt-1 w-full" type="text" name="middle_name" :value="old('middle_name')" />
+                            <x-input-error :messages="$errors->get('middle_name')" class="mt-2" />
+                        </div>
+
+                        <!-- Last Name -->
+                        <div class="mb-4">
+                            <x-input-label for="last_name" :value="__('Last Name')" />
+                            <x-text-input id="last_name" class="block mt-1 w-full" type="text" name="last_name" :value="old('last_name')" required />
+                            <x-input-error :messages="$errors->get('last_name')" class="mt-2" />
+                        </div>
+
+                        <!-- Suffix -->
+                        <div class="mb-4">
+                            <x-input-label for="suffix" :value="__('Suffix (Optional)')" />
+                            <x-text-input id="suffix" class="block mt-1 w-full" type="text" name="suffix" :value="old('suffix')" />
+                            <x-input-error :messages="$errors->get('suffix')" class="mt-2" />
+                        </div>
+
+                        <!-- Address -->
+                        <div class="mb-4">
+                            <x-input-label for="address" :value="__('Address')" />
+                            <x-text-input id="address" class="block mt-1 w-full" type="text" name="address" :value="old('address')" required />
+                            <x-input-error :messages="$errors->get('address')" class="mt-2" />
                         </div>
 
                         <!-- Email -->
@@ -24,6 +52,13 @@
                             <x-input-label for="email" :value="__('Email')" />
                             <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required />
                             <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                        </div>
+
+                        <!-- Contact Number -->
+                        <div class="mb-4">
+                            <x-input-label for="contact_no" :value="__('Contact Number')" />
+                            <x-text-input id="contact_no" class="block mt-1 w-full" type="text" name="contact_no" :value="old('contact_no')" required />
+                            <x-input-error :messages="$errors->get('contact_no')" class="mt-2" />
                         </div>
 
                         <!-- Role -->

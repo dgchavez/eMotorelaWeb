@@ -4,6 +4,84 @@
     $(document).ready(function() {
         console.log('jQuery loaded and document ready');
         
+        // Initialize drivers array
+        let drivers = [];
+
+        // Event handler for operator is driver checkbox
+        $('#operatorIsDriver').on('change', function() {
+            const isChecked = $(this).is(':checked');
+            $('#operator-license-fields').toggle(isChecked);
+            
+            if (!isChecked) {
+                // Remove operator from drivers list
+                drivers = drivers.filter(d => !d._isOperator);
+                renderDriversList();
+                updateMainForm();
+                
+                // Clear license fields
+                $('#operator_license_no').val('');
+                $('#operator_license_expiry').val('');
+            }
+        });
+
+        // Update operator-driver when license fields change
+        $('#operator_license_no, #operator_license_expiry').on('change', function() {
+            if ($('#operatorIsDriver').is(':checked')) {
+                const licenseNo = $('#operator_license_no').val();
+                const licenseExpiry = $('#operator_license_expiry').val();
+                
+                if (licenseNo && licenseExpiry) {
+                    // Update the operator-driver entry
+                    const operatorDriver = {
+                        last_name: $('#last_name').val(),
+                        first_name: $('#first_name').val(),
+                        middle_name: $('#middle_name').val(),
+                        address: $('#address').val(),
+                        contact_no: $('#contact_number').val(),
+                        drivers_license_no: licenseNo,
+                        license_expiry_date: licenseExpiry,
+                        _isOperator: true
+                    };
+                    
+                    // Remove any existing operator-driver entry
+                    drivers = drivers.filter(d => !d._isOperator);
+                    // Add the updated operator-driver entry at the beginning
+                    drivers.unshift(operatorDriver);
+                    renderDriversList();
+                    updateMainForm();
+                }
+            }
+        });
+
+        // Update operator-driver when operator details change
+        $('#last_name, #first_name, #middle_name, #address, #contact_number').on('change', function() {
+            if ($('#operatorIsDriver').is(':checked')) {
+                const licenseNo = $('#operator_license_no').val();
+                const licenseExpiry = $('#operator_license_expiry').val();
+                
+                if (licenseNo && licenseExpiry) {
+                    // Update the operator-driver entry
+                    const operatorDriver = {
+                        last_name: $('#last_name').val(),
+                        first_name: $('#first_name').val(),
+                        middle_name: $('#middle_name').val(),
+                        address: $('#address').val(),
+                        contact_no: $('#contact_number').val(),
+                        drivers_license_no: licenseNo,
+                        license_expiry_date: licenseExpiry,
+                        _isOperator: true
+                    };
+                    
+                    // Remove any existing operator-driver entry
+                    drivers = drivers.filter(d => !d._isOperator);
+                    // Add the updated operator-driver entry at the beginning
+                    drivers.unshift(operatorDriver);
+                    renderDriversList();
+                    updateMainForm();
+                }
+            }
+        });
+
         // Event handler for opening modal
         $('#openDriverModalButton').on('click', function(e) {
             e.preventDefault();
@@ -30,13 +108,13 @@
         });
 
         // Rest of your existing JavaScript code converted to jQuery
-        let drivers = [];
-
         $('#driverForm').on('submit', function(e) {
             e.preventDefault();
             if (validateForm()) {
                 const formData = new FormData(this);
-                const newDriver = {};
+                const newDriver = {
+                    _isOperator: false
+                };
                 formData.forEach((value, key) => {
                     newDriver[key] = value;
                 });
@@ -55,7 +133,9 @@
             e.preventDefault();
             if (validateForm()) {
                 const formData = new FormData($('#driverForm')[0]);
-                const newDriver = {};
+                const newDriver = {
+                    _isOperator: false
+                };
                 formData.forEach((value, key) => {
                     newDriver[key] = value;
                 });
@@ -467,7 +547,7 @@
                             <div class="mb-4">
                                 <div class="flex justify-between items-center mb-4">
                                     <div class="flex items-center">
-                                        <input type="checkbox" id="operatorIsDriver" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 mr-2">
+                                        <input type="checkbox" id="operatorIsDriver" name="operator_is_driver" value="1" {{ old('operator_is_driver') == '1' ? 'checked' : '' }} class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 mr-2">
                                         <label for="operatorIsDriver" class="text-sm font-medium text-gray-700">Operator is also the driver</label>
                                     </div>
                                     <h4 class="text-md font-medium text-gray-700">Drivers List</h4>
@@ -499,11 +579,17 @@
                             <div id="operator-license-fields" class="flex gap-4 mt-2" style="display:none;">
                                 <div>
                                     <label for="operator_license_no" class="block text-xs font-medium text-gray-700">Driver's License #</label>
-                                    <input type="text" id="operator_license_no" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
+                                    <input type="text" id="operator_license_no" name="operator_license_no" value="{{ old('operator_license_no') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
+                                    @error('operator_license_no')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
                                 </div>
                                 <div>
                                     <label for="operator_license_expiry" class="block text-xs font-medium text-gray-700">License Expiry Date</label>
-                                    <input type="date" id="operator_license_expiry" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
+                                    <input type="date" id="operator_license_expiry" name="operator_license_expiry" value="{{ old('operator_license_expiry') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
+                                    @error('operator_license_expiry')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
                                 </div>
                             </div>
                         </div>

@@ -76,6 +76,11 @@ class OperatorController extends Controller
                 'emergency_contact' => 'required|string|max:255',
                 'emergency_contact_no' => 'required|string',
 
+                // Operator as driver validation
+                'operator_is_driver' => 'required|boolean',
+                'operator_license_no' => 'required_if:operator_is_driver,1|string|max:50',
+                'operator_license_expiry' => 'required_if:operator_is_driver,1|date|after:today',
+
                 // Drivers validation
                 'drivers' => 'required|array|min:1',
                 'drivers.*.last_name' => 'required|string|max:100',
@@ -122,29 +127,52 @@ class OperatorController extends Controller
                     'tel_no' => $validated['emergency_contact_no']
                 ]);
 
-                // Create drivers
-                $operator->drivers()->detach(); // Remove old links if updating
-
+                // Handle drivers
+                $driverIds = [];
+                
+                // Handle operator as driver
+                if ($validated['operator_is_driver']) {
+                    $operatorDriver = Driver::updateOrCreate(
+                        ['drivers_license_no' => $validated['operator_license_no']],
+                        [
+                            'last_name' => $validated['last_name'],
+                            'first_name' => $validated['first_name'],
+                            'middle_name' => $validated['middle_name'],
+                            'address' => $validated['address'],
+                            'contact_no' => $validated['contact_number'],
+                            'license_expiry_date' => $validated['operator_license_expiry']
+                        ]
+                    );
+                    $driverIds[] = $operatorDriver->id;
+                }
+                
+                // Handle other drivers
                 foreach ($validated['drivers'] as $driverData) {
-                    // Try to find an existing driver by license number (or other unique field)
-                    $driver = Driver::where('drivers_license_no', $driverData['drivers_license_no'])->first();
-
-                    if (!$driver) {
-                        $driver = Driver::create([
+                    // Skip if this is the operator-driver (to avoid duplicates)
+                    if ($validated['operator_is_driver'] && 
+                        isset($operatorDriver) && 
+                        $driverData['drivers_license_no'] === $validated['operator_license_no']) {
+                        continue;
+                    }
+                    
+                    // Create or update the driver
+                    $driver = Driver::updateOrCreate(
+                        ['drivers_license_no' => $driverData['drivers_license_no']],
+                        [
                             'last_name' => $driverData['last_name'],
                             'first_name' => $driverData['first_name'],
                             'middle_name' => $driverData['middle_name'] ?? null,
                             'address' => $driverData['address'],
                             'contact_no' => $driverData['contact_no'],
-                            'drivers_license_no' => $driverData['drivers_license_no'],
-                            'license_expiry_date' => $driverData['license_expiry_date'],
-                        ]);
-                    } else {
-                        // Optionally update driver details here if you want
-                    }
-
-                    $operator->drivers()->syncWithoutDetaching([$driver->id]);
+                            'license_expiry_date' => $driverData['license_expiry_date']
+                        ]
+                    );
+                    
+                    $driverIds[] = $driver->id;
                 }
+
+                // Attach all drivers to the operator using the pivot table
+                $operator->drivers()->attach($driverIds);
 
                 DB::commit();
                 return redirect()->route('operators.index')
@@ -196,10 +224,18 @@ class OperatorController extends Controller
         $todas = Toda::where('status', 'active')->orderBy('name')->get();
         $drivers = Driver::orderBy('last_name')->get();
         
-        // Check if operator is also a driver
-        $operatorDriver = Driver::where('drivers_license_no', '!=', '')
-            ->whereHas('operators', function($query) use ($operator) {
-                $query->where('operators.id', $operator->id);
+        // Check if operator is also a driver - check both current relationship and existing driver record
+        $operatorDriver = Driver::where(function($query) use ($operator) {
+                $query->whereHas('operators', function($q) use ($operator) {
+                    $q->where('operators.id', $operator->id);
+                })
+                ->orWhere(function($q) use ($operator) {
+                    $q->where('drivers_license_no', '!=', '')
+                      ->where('last_name', $operator->last_name)
+                      ->where('first_name', $operator->first_name)
+                      ->where('address', $operator->address)
+                      ->where('contact_no', $operator->contact_no);
+                });
             })->first();
         
         $driversArray = $operator->drivers->map(function($driver) use ($operator, $operatorDriver) {
@@ -256,17 +292,21 @@ class OperatorController extends Controller
             'emergency_contact' => 'required|string|max:255',
             'emergency_contact_no' => 'required|string',
 
+            // Operator as driver validation
+            'operator_is_driver' => 'required|boolean',
+            'operator_license_no' => 'nullable|required_if:operator_is_driver,1|string|max:50',
+            'operator_license_expiry' => 'nullable|required_if:operator_is_driver,1|date|after_or_equal:today',
+
             // Drivers validation
-            'drivers' => 'sometimes|array',
+            'drivers' => 'nullable|array',
             'drivers.*.id' => 'sometimes|exists:drivers,id',
             'drivers.*.last_name' => 'required_with:drivers|string|max:100',
             'drivers.*.first_name' => 'required_with:drivers|string|max:100',
             'drivers.*.middle_name' => 'nullable|string|max:100',
             'drivers.*.address' => 'required_with:drivers|string',
-            'drivers.*.contact_no' => 'required|string',
-            'drivers.*.drivers_license_no' => 'required|string|max:50',
-            'drivers.*.license_expiry_date' => 'required|date',
-            'drivers.*._isOperator' => 'sometimes|boolean'
+            'drivers.*.contact_no' => 'required_with:drivers|string',
+            'drivers.*.drivers_license_no' => 'required_with:drivers|string|max:50',
+            'drivers.*.license_expiry_date' => 'required_with:drivers|date'
         ]);
 
         DB::beginTransaction();
@@ -320,11 +360,55 @@ class OperatorController extends Controller
             );
 
             // Handle drivers
-            if (isset($validated['drivers'])) {
-                // Get existing driver IDs to maintain
-                $driverIds = [];
-                
+            $driverIds = [];
+            
+            // If operator is no longer a driver, remove the relationship
+            if (!$validated['operator_is_driver']) {
+                // Find and detach the operator-driver if it exists
+                $operatorDriver = Driver::where(function($query) use ($operator) {
+                    $query->whereHas('operators', function($q) use ($operator) {
+                        $q->where('operators.id', $operator->id);
+                    })
+                    ->orWhere(function($q) use ($operator) {
+                        $q->where('drivers_license_no', '!=', '')
+                          ->where('last_name', $operator->last_name)
+                          ->where('first_name', $operator->first_name)
+                          ->where('address', $operator->address)
+                          ->where('contact_no', $operator->contact_no);
+                    });
+                })->first();
+
+                if ($operatorDriver) {
+                    $operator->drivers()->detach($operatorDriver->id);
+                }
+            }
+            // Handle operator as driver if checked
+            else if ($validated['operator_is_driver']) {
+                $operatorDriver = Driver::updateOrCreate(
+                    ['drivers_license_no' => $validated['operator_license_no']],
+                    [
+                        'last_name' => $validated['last_name'],
+                        'first_name' => $validated['first_name'],
+                        'middle_name' => $validated['middle_name'],
+                        'address' => $validated['address'],
+                        'contact_no' => $validated['contact_number'],
+                        'license_expiry_date' => $validated['operator_license_expiry']
+                    ]
+                );
+                $driverIds[] = $operatorDriver->id;
+            }
+            
+            // Handle other drivers
+            if (isset($validated['drivers']) && is_array($validated['drivers'])) {
                 foreach ($validated['drivers'] as $driverData) {
+                    // Skip if this is the operator-driver (to avoid duplicates)
+                    if ($validated['operator_is_driver'] && 
+                        isset($operatorDriver) && 
+                        isset($driverData['drivers_license_no']) &&
+                        $driverData['drivers_license_no'] === $validated['operator_license_no']) {
+                        continue;
+                    }
+                    
                     // Create or update the driver
                     $driver = Driver::updateOrCreate(
                         ['drivers_license_no' => $driverData['drivers_license_no']],
@@ -334,19 +418,16 @@ class OperatorController extends Controller
                             'middle_name' => $driverData['middle_name'] ?? null,
                             'address' => $driverData['address'],
                             'contact_no' => $driverData['contact_no'],
-                            'license_expiry_date' => $driverData['license_expiry_date'],
+                            'license_expiry_date' => $driverData['license_expiry_date']
                         ]
                     );
                     
                     $driverIds[] = $driver->id;
                 }
-                
-                // Sync the driver relationships
-                $operator->drivers()->sync($driverIds);
-            } else {
-                // If no drivers are provided, detach all drivers
-                $operator->drivers()->detach();
             }
+
+            // Sync all remaining driver relationships
+            $operator->drivers()->sync($driverIds);
 
             DB::commit();
             return redirect()->route('operators.index')
@@ -390,5 +471,39 @@ class OperatorController extends Controller
 
             return back()->with('error', 'An error occurred while deleting the operator: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Find a driver record matching the operator's details
+     */
+    public function findDriver(Request $request)
+    {
+        $validated = $request->validate([
+            'last_name' => 'required|string',
+            'first_name' => 'required|string',
+            'address' => 'required|string',
+            'contact_no' => 'required|string'
+        ]);
+
+        $driver = Driver::where('drivers_license_no', '!=', '')
+            ->where('last_name', $validated['last_name'])
+            ->where('first_name', $validated['first_name'])
+            ->where('address', $validated['address'])
+            ->where('contact_no', $validated['contact_no'])
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'driver' => $driver ? [
+                'id' => $driver->id,
+                'last_name' => $driver->last_name,
+                'first_name' => $driver->first_name,
+                'middle_name' => $driver->middle_name,
+                'address' => $driver->address,
+                'contact_no' => $driver->contact_no,
+                'drivers_license_no' => $driver->drivers_license_no,
+                'license_expiry_date' => $driver->license_expiry_date ? $driver->license_expiry_date->format('Y-m-d') : null
+            ] : null
+        ]);
     }
 }

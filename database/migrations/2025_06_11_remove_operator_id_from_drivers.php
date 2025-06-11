@@ -6,25 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
+    public function up()
     {
         Schema::table('drivers', function (Blueprint $table) {
-            $table->dropForeign(['operator_id']); // if foreign key exists
+            $table->dropForeign(['operator_id']);
             $table->dropColumn('operator_id');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
+    public function down()
     {
         Schema::table('drivers', function (Blueprint $table) {
-            $table->unsignedBigInteger('operator_id')->nullable();
-            // $table->foreign('operator_id')->references('id')->on('operators');
+            $table->foreignId('operator_id')->after('id')->constrained('operators')->onDelete('cascade');
         });
     }
-};
+}; 
